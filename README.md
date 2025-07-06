@@ -52,7 +52,7 @@ ADMIN_PASSWORD= giá trị từ biến môi trường `ADMIN_PASSWORD`
 
 5. Tạo database trong MySQL:
 ```sql
-CREATE DATABASE milk_store CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+npx sequelize-cli db:drop && npx sequelize-cli db:create
 ```
 
 6. Khởi tạo database và tạo tài khoản admin mặc định:

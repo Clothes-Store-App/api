@@ -10,31 +10,51 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // Define association with OrderItem (one-to-many)
-      Product.hasMany(models.OrderItem, {
-        foreignKey: 'product_id',
-        as: 'orderItems'
-      });
-      
-      // Define association with Category (many-to-one)
+      // Quan hệ với Category
       Product.belongsTo(models.Category, {
         foreignKey: 'category_id',
         as: 'category'
       });
+
+      // Quan hệ với ProductColor
+      Product.hasMany(models.ProductColor, {
+        foreignKey: 'product_id',
+        as: 'colors'
+      });
+
+      // Quan hệ với OrderItem
+      Product.hasMany(models.OrderItem, {
+        foreignKey: 'product_id',
+        as: 'orderItems'
+      });
     }
   }
   Product.init({
-    name: DataTypes.STRING,
-    description: DataTypes.TEXT,
-    image: DataTypes.STRING,
-    price: DataTypes.DECIMAL,
-    category_id: DataTypes.INTEGER,
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    price: {
+      type: DataTypes.DECIMAL(10, 0),
+      allowNull: false
+    },
+    category_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
     status: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
-      defaultValue: false
+      defaultValue: true
     },
-    deletedAt: DataTypes.DATE
+    deletedAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    }
   }, {
     sequelize,
     modelName: 'Product',

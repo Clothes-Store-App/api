@@ -144,10 +144,53 @@ const refresh = async (req, res) => {
   }
 };
 
+const register = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    
+    if (!name || !email || !password) {
+      return sendResponse(
+        res,
+        STATUS.BAD_REQUEST,
+        MESSAGE.ERROR.REGISTRATION_FIELDS_REQUIRED,
+        null,
+        false
+      );
+    }
+
+    const authData = await authService.register(name, email, password);
+    
+    // Lưu token vào cookies
+    setTokenCookies(res, authData.accessToken, authData.refreshToken);
+    
+    // Kiểm tra User-Agent để phát hiện mobile client
+    const userAgent = req.headers['user-agent'] || '';
+    const isMobile = userAgent.includes('ReactNative') || 
+                    req.headers['x-client-type'] === 'mobile';
+    
+    // Trả về thông tin user và token nếu là mobile client
+    sendResponse(res, STATUS.CREATED, MESSAGE.SUCCESS.REGISTRATION_SUCCESS, {
+      user: authData.user,
+      accessToken: isMobile ? authData.accessToken : undefined
+    });
+  } catch (error) {
+    console.log('Registration error:', error.message);
+    sendResponse(
+      res,
+      error.message === MESSAGE.ERROR.EMAIL_EXISTS ? STATUS.CONFLICT : STATUS.BAD_REQUEST,
+      error.message || MESSAGE.ERROR.REGISTRATION_FAILED,
+      null,
+      false,
+      error.message
+    );
+  }
+};
+
 const ApiAuthController = {
   login,
   logout,
   refresh,
+  register
 };
 
 module.exports = ApiAuthController; 

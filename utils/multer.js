@@ -1,33 +1,55 @@
 const multer = require('multer');
-const path = require('path');
 
-// Cấu hình lưu vào bộ nhớ
-const memoryStorage = multer.memoryStorage();
+// Sử dụng memory storage vì sẽ upload lên Cloudinary
+const storage = multer.memoryStorage();
 
-// Tạo bộ lọc file
+// Kiểm tra file type
 const fileFilter = (req, file, cb) => {
-    // Chấp nhận các loại file ảnh
-    if (file.mimetype.startsWith('image/')) {
-        cb(null, true);
-    } else {
-        cb(new Error('Chỉ chấp nhận file hình ảnh!'), false);
-    }
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Chỉ chấp nhận file hình ảnh!'), false);
+  }
 };
 
-// Cấu hình multer
+// Cấu hình cơ bản cho multer
 const multerConfig = {
-    storage: memoryStorage,
-    fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024, // 500MB - giới hạn kích thước file
-        fieldSize: 20 * 1024 * 1024, // 20MB
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+};
+
+// Khởi tạo multer với cấu hình cơ bản
+const upload = multer(multerConfig);
+
+// Middleware cho upload single
+const uploadSingle = (fieldName) => upload.single(fieldName);
+
+// Middleware cho product images
+const uploadProductImages = upload.array('images', 10); // Cho phép tối đa 10 ảnh
+
+// Wrap middleware để xử lý lỗi
+const handleProductImages = (req, res, next) => {
+  uploadProductImages(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ 
+        message: 'Lỗi upload file', 
+        error: err.message 
+      });
+    } else if (err) {
+      return res.status(400).json({ 
+        message: 'Lỗi không xác định', 
+        error: err.message 
+      });
     }
+    next();
+  });
 };
 
-const upload = {
-    single: (name) => multer(multerConfig).single(name),
-    multiple: (name, maxCount = 10) => multer(multerConfig).array(name, maxCount),
-    any: multer(multerConfig).any()
+module.exports = {
+  upload,
+  uploadSingle,
+  uploadProductImages: handleProductImages
 };
-
-module.exports = upload;

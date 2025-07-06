@@ -136,9 +136,46 @@ const refreshAccessToken = async (refreshToken) => {
   }
 };
 
+// Đăng ký tài khoản mới
+const register = async (name, email, password) => {
+  // Kiểm tra email đã tồn tại chưa
+  const existingUser = await User.findOne({ where: { email } });
+  if (existingUser) {
+    throw new Error(MESSAGE.ERROR.EMAIL_EXISTS);
+  }
+
+  // Hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  // Tạo user mới với role USER
+  const user = await User.create({
+    name,
+    email,
+    password: hashedPassword,
+    role: AUTH.ROLES.USER
+  });
+
+  // Tạo token
+  const accessToken = generateAccessToken(user);
+  const refreshToken = await generateRefreshToken(user.id);
+
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    },
+    accessToken,
+    refreshToken
+  };
+};
+
 module.exports = {
   login,
   logout,
   refreshAccessToken,
-  updatePushToken
+  updatePushToken,
+  register
 }; 

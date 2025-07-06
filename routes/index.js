@@ -14,6 +14,8 @@ const bannerRoute = require("./banner.route");
 const notificationRoute = require("./notification.route");
 const postRoute = require("./post.route");
 const chatbotRoute = require("./chatbot.route");
+const productSizeRoute = require("./product-size.route");
+const cartRoute = require("./cart.route");
 const { BASE_ENDPOINT } = require("../constants/endpoints");
 
 router.use(BASE_ENDPOINT.CATEGORY, categoryRoute);
@@ -29,5 +31,7 @@ router.use(BASE_ENDPOINT.BANNER, bannerRoute);
 router.use(BASE_ENDPOINT.NOTIFICATION, notificationRoute);
 router.use(BASE_ENDPOINT.POST, postRoute);
 router.use(BASE_ENDPOINT.CHATBOT, chatbotRoute);
+router.use(BASE_ENDPOINT.PRODUCT_SIZE, productSizeRoute);
+router.use(BASE_ENDPOINT.CART, cartRoute);
 
 module.exports = router;

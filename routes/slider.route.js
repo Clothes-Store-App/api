@@ -4,7 +4,7 @@ const ApiSliderController = require("../controllers/slider.controller");
 const auth = require("../middleware/auth");
 const { isAdmin } = require("../middleware/role");
 const { BASE_ENDPOINT } = require('../constants/endpoints');
-const upload = require('../utils/multer');
+const {upload} = require('../utils/multer');
 
 // Route public
 router.get(BASE_ENDPOINT.BASE, ApiSliderController.getAll);

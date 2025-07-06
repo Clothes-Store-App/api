@@ -23,6 +23,11 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       unique: true
     },
+    image: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null
+    },
     password: {
       type: DataTypes.STRING,
       allowNull: false
@@ -33,6 +38,14 @@ module.exports = (sequelize, DataTypes) => {
     },
     push_token: {
       type: DataTypes.STRING,
+      allowNull: true
+    },
+    reset_password_code: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    reset_password_expires: {
+      type: DataTypes.DATE,
       allowNull: true
     }
   }, {

@@ -37,16 +37,35 @@ const create = async (req, res) => {
 
 const update = async (req, res) => {
   try {
+    const imageFile = req.file; // Lấy file từ multer
+    const userData = req.body;
+
+    // Validate dữ liệu cơ bản
+    if (Object.keys(userData).length === 0 && !imageFile) {
+      return sendResponse(
+        res,
+        STATUS.BAD_REQUEST,
+        'Không có dữ liệu để cập nhật',
+        null,
+        false
+      );
+    }
+
     const updatedUser = await userService.updateUser(
       req.params.id,
-      req.body
+      userData,
+      imageFile
     );
-    sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.UPDATED, updatedUser);
+
+    // Loại bỏ password khỏi response
+    const { password, ...userWithoutPassword } = updatedUser.toJSON();
+    
+    sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.UPDATED, userWithoutPassword);
   } catch (error) {
     sendResponse(
       res,
-      STATUS.SERVER_ERROR,
-      MESSAGE.ERROR.INTERNAL,
+      STATUS.BAD_REQUEST,
+      error.message,
       null,
       false,
       error.message
@@ -70,11 +89,125 @@ const remove = async (req, res) => {
   }
 };
 
+// Controller xử lý quên mật khẩu
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return sendResponse(
+        res,
+        STATUS.BAD_REQUEST,
+        'Email là bắt buộc',
+        null,
+        false
+      );
+    }
+
+    const result = await userService.handleForgotPassword(email);
+    sendResponse(res, STATUS.SUCCESS, result.message);
+  } catch (error) {
+    sendResponse(
+      res,
+      STATUS.BAD_REQUEST,
+      error.message,
+      null,
+      false
+    );
+  }
+};
+
+// Controller xác thực mã reset password
+const verifyResetCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    
+    if (!email || !code) {
+      return sendResponse(
+        res,
+        STATUS.BAD_REQUEST,
+        'Email và mã xác thực là bắt buộc',
+        null,
+        false
+      );
+    }
+
+    const result = await userService.verifyResetCode(email, code);
+    sendResponse(res, STATUS.SUCCESS, 'Xác thực thành công', result);
+  } catch (error) {
+    sendResponse(
+      res,
+      STATUS.BAD_REQUEST,
+      error.message,
+      null,
+      false
+    );
+  }
+};
+
+// Controller đặt lại mật khẩu
+const resetPassword = async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+    
+    if (!resetToken || !newPassword) {
+      return sendResponse(
+        res,
+        STATUS.BAD_REQUEST,
+        'Token và mật khẩu mới là bắt buộc',
+        null,
+        false
+      );
+    }
+
+    if (newPassword.length < 6) {
+      return sendResponse(
+        res,
+        STATUS.BAD_REQUEST,
+        'Mật khẩu phải có ít nhất 6 ký tự',
+        null,
+        false
+      );
+    }
+
+    const result = await userService.resetPassword(resetToken, newPassword);
+    sendResponse(res, STATUS.SUCCESS, result.message);
+  } catch (error) {
+    sendResponse(
+      res,
+      STATUS.BAD_REQUEST,
+      error.message,
+      null,
+      false
+    );
+  }
+};
+
+// Thêm controller xóa ảnh user
+const deleteImage = async (req, res) => {
+  try {
+    const result = await userService.deleteUserImage(req.params.id);
+    sendResponse(res, STATUS.SUCCESS, result.message);
+  } catch (error) {
+    sendResponse(
+      res,
+      STATUS.BAD_REQUEST,
+      error.message,
+      null,
+      false
+    );
+  }
+};
+
 const ApiUserController = {
   getAll,
   create,
   update,
   remove,
+  forgotPassword,
+  verifyResetCode,
+  resetPassword,
+  deleteImage
 };
 
 module.exports = ApiUserController; 

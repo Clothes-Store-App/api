@@ -7,7 +7,7 @@ const { isAdmin } = require("../middleware/role");
 const { validate } = require('../middleware/validator');
 const { MESSAGE } = require('../constants/messages')
 const { BASE_ENDPOINT } = require('../constants/endpoints')
-const upload = require('../utils/multer');
+const {upload} = require('../utils/multer');
 
 // Route public
 router.get(BASE_ENDPOINT.BASE, ApiBannerController.getAll);
