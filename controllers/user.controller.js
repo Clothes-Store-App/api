@@ -21,6 +21,7 @@ const getAll = async (req, res) => {
 
 const create = async (req, res) => {
   try {
+    // Cho phép nhận phone nếu có
     const user = await userService.createUser(req.body);
     sendResponse(res, STATUS.CREATED, MESSAGE.SUCCESS.CREATED, user);
   } catch (error) {
@@ -39,7 +40,7 @@ const update = async (req, res) => {
   try {
     const imageFile = req.file; // Lấy file từ multer
     const userData = req.body;
-
+    // Cho phép nhận phone nếu có
     // Validate dữ liệu cơ bản
     if (Object.keys(userData).length === 0 && !imageFile) {
       return sendResponse(
@@ -50,16 +51,13 @@ const update = async (req, res) => {
         false
       );
     }
-
     const updatedUser = await userService.updateUser(
       req.params.id,
       userData,
       imageFile
     );
-
     // Loại bỏ password khỏi response
     const { password, ...userWithoutPassword } = updatedUser.toJSON();
-    
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.UPDATED, userWithoutPassword);
   } catch (error) {
     sendResponse(

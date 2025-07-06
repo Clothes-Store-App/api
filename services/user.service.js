@@ -14,6 +14,7 @@ const getAllUsers = async () => {
 };
 
 const createUser = async (userData) => {
+  // Cho phép thêm phone nếu có
   return await User.create(userData);
 };
 
@@ -48,6 +49,7 @@ const updateUser = async (id, userData, imageFile = null) => {
     userData.password = await User.hashPassword(userData.password);
   }
 
+  // Cho phép cập nhật phone nếu có
   // Cập nhật thông tin user
   return await user.update(userData);
 };
