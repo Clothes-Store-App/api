@@ -146,7 +146,7 @@ const refresh = async (req, res) => {
 
 const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, phone } = req.body;
     
     if (!name || !email || !password) {
       return sendResponse(
@@ -158,7 +158,7 @@ const register = async (req, res) => {
       );
     }
 
-    const authData = await authService.register(name, email, password);
+    const authData = await authService.register(name, email, password, phone);
     
     // Lưu token vào cookies
     setTokenCookies(res, authData.accessToken, authData.refreshToken);

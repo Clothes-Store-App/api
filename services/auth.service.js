@@ -137,7 +137,7 @@ const refreshAccessToken = async (refreshToken) => {
 };
 
 // Đăng ký tài khoản mới
-const register = async (name, email, password) => {
+const register = async (name, email, password, phone) => {
   // Kiểm tra email đã tồn tại chưa
   const existingUser = await User.findOne({ where: { email } });
   if (existingUser) {
@@ -153,7 +153,8 @@ const register = async (name, email, password) => {
     name,
     email,
     password: hashedPassword,
-    role: AUTH.ROLES.USER
+    role: AUTH.ROLES.USER,
+    phone
   });
 
   // Tạo token
@@ -165,7 +166,8 @@ const register = async (name, email, password) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      phone: user.phone
     },
     accessToken,
     refreshToken
