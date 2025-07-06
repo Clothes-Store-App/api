@@ -5,7 +5,7 @@ const { isAdmin } = require("../middleware/role");
 const { validatePost, validatePostStatus, validatePostId, validateImageUpload } = require("../middleware/validator");
 const { MESSAGE } = require('../constants/messages')
 const { BASE_ENDPOINT, POST_ENDPOINT } = require('../constants/endpoints')
-const upload = require('../utils/multer');
+const {upload} = require('../utils/multer');
 const ApiPostController = require("../controllers/post.controller");
 
 // Public routes

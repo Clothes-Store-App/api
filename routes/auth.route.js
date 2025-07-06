@@ -30,4 +30,18 @@ router.post(
   ApiAuthController.refresh
 );
 
+// Đăng ký - thêm validation
+router.post(
+  AUTH.REGISTER,
+  [
+    body('name').notEmpty().withMessage(MESSAGE.VALIDATION.REQUIRED('Tên')),
+    body('email').isEmail().withMessage(MESSAGE.VALIDATION.INVALID('Email')),
+    body('password')
+      .isLength({ min: 6 })
+      .withMessage(MESSAGE.VALIDATION.MIN_LENGTH('Mật khẩu', 6))
+  ],
+  validate,
+  ApiAuthController.register
+);
+
 module.exports = router; 

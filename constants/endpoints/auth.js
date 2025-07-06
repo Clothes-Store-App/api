@@ -1,5 +1,9 @@
 module.exports = {
   LOGIN: "/login",
+  REGISTER: "/register",
   LOGOUT: "/logout",
   REFRESH: "/refresh",
+  FORGOT_PASSWORD: "/forgot-password",
+  VERIFY_RESET_CODE: "/verify-reset-code",
+  RESET_PASSWORD: "/reset-password",
 };

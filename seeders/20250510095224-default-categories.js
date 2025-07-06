@@ -3,31 +3,64 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    return queryInterface.bulkInsert('Categories', [
+    const now = new Date();
+
+    // Thêm các categories mặc định
+    await queryInterface.bulkInsert('Categories', [
       {
-        name: 'Sữa tươi',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        name: 'Áo',
+        createdAt: now,
+        updatedAt: now
       },
       {
-        name: 'Sữa chua',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        name: 'Quần',
+        createdAt: now,
+        updatedAt: now
       },
       {
-        name: 'Bơ và phô mai',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        name: 'Váy',
+        createdAt: now,
+        updatedAt: now
       },
       {
-        name: 'Kem',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        name: 'Phụ kiện',
+        createdAt: now,
+        updatedAt: now
+      }
+    ]);
+
+    // Thêm các sizes mặc định
+    await queryInterface.bulkInsert('ProductSizes', [
+      {
+        size_name: 'S',
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        size_name: 'M',
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        size_name: 'L',
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        size_name: 'XL',
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        size_name: 'XXL',
+        createdAt: now,
+        updatedAt: now
       }
     ]);
   },
 
   async down (queryInterface, Sequelize) {
-    return queryInterface.bulkDelete('Categories', null, {});
+    await queryInterface.bulkDelete('ProductSizes', null, {});
+    await queryInterface.bulkDelete('Categories', null, {});
   }
 };

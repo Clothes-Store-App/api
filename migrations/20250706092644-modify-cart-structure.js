@@ -1,19 +1,25 @@
 'use strict';
+
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('OrderItems', {
+    // Drop old tables
+    await queryInterface.dropTable('CartItems');
+    await queryInterface.dropTable('Carts');
+
+    // Create new CartItems table
+    await queryInterface.createTable('CartItems', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      order_id: {
+      user_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'Orders',
+          model: 'Users',
           key: 'id'
         },
         onUpdate: 'CASCADE',
@@ -27,17 +33,27 @@ module.exports = {
           key: 'id'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'RESTRICT'
+        onDelete: 'CASCADE'
       },
-      color_size_id: {
+      product_color_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'ColorSizes',
+          model: 'ProductColors',
           key: 'id'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'RESTRICT'
+        onDelete: 'CASCADE'
+      },
+      product_size_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'ProductSizes',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
       },
       quantity: {
         type: Sequelize.INTEGER,
@@ -45,7 +61,7 @@ module.exports = {
         defaultValue: 1
       },
       price: {
-        type: Sequelize.DECIMAL(10, 2),
+        type: Sequelize.DECIMAL(10, 0),
         allowNull: false
       },
       createdAt: {
@@ -58,12 +74,15 @@ module.exports = {
       }
     });
 
-    // Thêm các indexes
-    await queryInterface.addIndex('OrderItems', ['order_id']);
-    await queryInterface.addIndex('OrderItems', ['product_id']);
-    await queryInterface.addIndex('OrderItems', ['color_size_id']);
+    // Add unique constraint
+    await queryInterface.addConstraint('CartItems', {
+      fields: ['user_id', 'product_id', 'product_color_id', 'product_size_id'],
+      type: 'unique',
+      name: 'unique_user_product_color_size'
+    });
   },
+
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('OrderItems');
+    await queryInterface.dropTable('CartItems');
   }
 };

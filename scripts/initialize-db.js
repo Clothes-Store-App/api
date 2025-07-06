@@ -1,3 +1,5 @@
+'use strict';
+
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 const { createAdminUser } = require('../seeders/admin-user');
@@ -15,20 +17,21 @@ const initializeDatabase = async () => {
     await db.sequelize.authenticate();
     console.log('Database connection successful.');
 
-    console.log('Syncing database models...');
-    // Đồng bộ hóa models với database (tạo bảng nếu chưa tồn tại)
-    // Force: false - không xóa bảng đã tồn tại
-    await db.sequelize.sync({ force: false });
-    console.log('Database synchronized successfully.');
-
-    // Chạy migrations
+    // Chạy migrations trước
     console.log('Running migrations...');
     try {
       await execPromise('npx sequelize-cli db:migrate');
       console.log('Migrations executed successfully.');
     } catch (migrateError) {
       console.error('Error running migrations:', migrateError.message);
+      // Nếu lỗi migrations, dừng lại
+      throw migrateError;
     }
+
+    // Sau đó mới sync models
+    console.log('Syncing database models...');
+    await db.sequelize.sync({ force: false });
+    console.log('Database synchronized successfully.');
 
     // Chạy script fix-refresh-tokens để dọn dẹp bảng refresh_tokens trùng lặp
     console.log('Fixing refresh tokens table...');
