@@ -3,11 +3,13 @@ const { POST_STATUS } = require('./posts');
 const MESSAGE = {
   SUCCESS: {
     GET_SUCCESS: "Lấy dữ liệu thành công!",
+    DATA_RETRIEVED: "Lấy dữ liệu thành công!",
     CREATED: "Tạo mới thành công!",
     UPDATED: "Cập nhật thành công!",
     DELETED: "Xóa thành công!",
     LOGIN_SUCCESS: "Đăng nhập thành công!",
     LOGOUT_SUCCESS: "Đăng xuất thành công!",
+    REGISTRATION_SUCCESS: "Đăng ký thành công!",
     TOKEN_REFRESHED: "Làm mới token thành công!",
     EXPIRED_TOKENS_REMOVED: "Đã xóa các token hết hạn!",
     POST_CREATED: "Tạo bài viết thành công!",
@@ -33,6 +35,9 @@ const MESSAGE = {
     REFRESH_TOKEN_EXPIRED: "Refresh token đã hết hạn.",
     TOKEN_EXPIRED: "Token đã hết hạn. Vui lòng làm mới token.",
     EMAIL_PASSWORD_REQUIRED: "Email và mật khẩu là bắt buộc.",
+    EMAIL_EXISTS: "Email đã được sử dụng.",
+    REGISTRATION_FIELDS_REQUIRED: "Tên, email và mật khẩu là bắt buộc.",
+    REGISTRATION_FAILED: "Đăng ký thất bại.",
     POST_NOT_FOUND: "Không tìm thấy bài viết.",
     POST_CREATE_FAILED: "Tạo bài viết thất bại.",
     POST_UPDATE_FAILED: "Cập nhật bài viết thất bại.",

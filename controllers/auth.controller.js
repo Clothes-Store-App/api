@@ -186,11 +186,33 @@ const register = async (req, res) => {
   }
 };
 
+const getProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userProfile = await authService.getProfile(userId);
+    
+    sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.DATA_RETRIEVED, {
+      user: userProfile
+    });
+  } catch (error) {
+    console.log('Get profile error:', error.message);
+    sendResponse(
+      res,
+      STATUS.SERVER_ERROR,
+      error.message || MESSAGE.ERROR.INTERNAL,
+      null,
+      false,
+      error.message
+    );
+  }
+};
+
 const ApiAuthController = {
   login,
   logout,
   refresh,
-  register
+  register,
+  getProfile
 };
 
 module.exports = ApiAuthController; 
