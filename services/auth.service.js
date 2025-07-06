@@ -58,7 +58,8 @@ const login = async (email, password) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      phone: user.phone
     },
     accessToken,
     refreshToken
@@ -174,10 +175,30 @@ const register = async (name, email, password, phone) => {
   };
 };
 
+// Lấy thông tin profile của user
+const getProfile = async (userId) => {
+  const user = await User.findByPk(userId, {
+    attributes: ['id', 'name', 'email', 'role', 'phone'] // Chỉ lấy các field cần thiết
+  });
+
+  if (!user) {
+    throw new Error(MESSAGE.ERROR.USER_NOT_FOUND);
+  }
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    phone: user.phone
+  };
+};
+
 module.exports = {
   login,
   logout,
   refreshAccessToken,
   updatePushToken,
-  register
+  register,
+  getProfile
 }; 

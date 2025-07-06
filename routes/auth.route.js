@@ -44,4 +44,7 @@ router.post(
   ApiAuthController.register
 );
 
+// Lấy thông tin profile
+router.get('/profile', auth, ApiAuthController.getProfile);
+
 module.exports = router; 
