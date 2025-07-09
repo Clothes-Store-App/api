@@ -190,7 +190,6 @@ const getProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const userProfile = await authService.getProfile(userId);
-    
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.DATA_RETRIEVED, {
       user: userProfile
     });

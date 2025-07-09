@@ -46,13 +46,13 @@ const getAllByAdmin = async (req, res) => {
 const create = async (req, res) => {  
   try {
     const { phone, items, total, name } = req.body;
-    
+    console.log('req.body', req.body);
     // Lấy io instance và adminSockets từ app
     const io = req.app.get('io');
     const adminSockets = req.app.get('adminSockets');
     
     const order = await orderService.createOrder(
-      {phone, name, items, total},
+      {phone, name, address, items, total},
       io,
       adminSockets
     );    

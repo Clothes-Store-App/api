@@ -8,7 +8,7 @@ const { STATUS } = require('../constants/httpStatusCodes');
 const { MESSAGE } = require('../constants/messages');
 
 // Đăng ký push token cho admin user
-router.post('/register-token', auth, isAdmin, async (req, res) => {  
+router.post('/register-token', auth, async (req, res) => {  
   try {
     const { pushToken } = req.body;
     const userId = req.user.id;
