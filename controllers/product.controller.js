@@ -29,8 +29,8 @@ const getAllByAdmin = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
     const category_id = req.query.category_id ? parseInt(req.query.category_id) : null;
-
     const result = await productService.getAllProductsByAdmin(page, limit, search, category_id);
+    
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.GET_SUCCESS, result);
   } catch (error) {
     sendResponse(

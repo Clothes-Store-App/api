@@ -90,7 +90,15 @@ const getAllProductsByAdmin = async (page = 1, limit = 10, search = '', category
     whereClause.category_id = category_id;
   }
 
-  const { count, rows } = await Product.findAndCountAll({
+  // Count distinct products only (without include to avoid join multiplication)
+  const count = await Product.count({
+    where: whereClause,
+    distinct: true,
+    col: 'id'
+  });
+
+  // Get products with full relationships
+  const rows = await Product.findAll({
     where: whereClause,
     include: [
       {
