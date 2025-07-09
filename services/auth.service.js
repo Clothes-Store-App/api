@@ -178,7 +178,7 @@ const register = async (name, email, password, phone) => {
 // Lấy thông tin profile của user
 const getProfile = async (userId) => {
   const user = await User.findByPk(userId, {
-    attributes: ['id', 'name', 'email', 'role', 'phone'] // Chỉ lấy các field cần thiết
+    attributes: ['id', 'name', 'email', 'role', 'phone', 'image'] // Chỉ lấy các field cần thiết
   });
 
   if (!user) {
@@ -190,7 +190,8 @@ const getProfile = async (userId) => {
     name: user.name,
     email: user.email,
     role: user.role,
-    phone: user.phone
+    phone: user.phone,
+    image: user.image
   };
 };
 

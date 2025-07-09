@@ -1,7 +1,8 @@
-const { Order, OrderItem, Product } = require('../models');
+const { Order, OrderItem, Product, ProductColor, ProductSize } = require('../models');
 const { PAGINATION } = require('../constants/pagination');
 const { where, Op } = require('sequelize');
 const NotificationService = require('./notification.service');
+const { sequelize } = require('../models');
 
 const getAllOrders = async () => {
   try {
@@ -143,10 +144,10 @@ const sendOrderNotificationViaSocket = (order, io, adminSockets) => {
   }
 };
 
-const createOrder = async ({phone, name, items, total}, io, adminSockets) => {  
+const createOrder = async ({phone, name, address, items, total}, io, adminSockets) => {  
   try {
     // 1. Tạo order
-    const order = await Order.create({phone, name, total});    
+    const order = await Order.create({phone, name, address, total});    
     // 2. Tạo order items
     const orderItemsWithOrderId = items.map(item => ({ ...item, order_id: order.id }));
     await OrderItem.bulkCreate(orderItemsWithOrderId);
@@ -223,10 +224,148 @@ const deleteOrder = async (id) => {
   return await order.destroy();
 };
 
-module.exports = {
-  getAllOrders,
-  createOrder,
-  updateOrder,
-  deleteOrder,
-  getAllOrdersByAdmin
-}; 
+class OrderService {
+  async createOrder(orderData) {
+    const { name, phone, address, items, total } = orderData;
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      // Create the order
+      const order = await Order.create({
+        name,
+        phone,
+        address,
+        total,
+        status: 'PENDING'
+      }, { transaction });
+
+      // Create order items
+      const orderItems = await Promise.all(
+        items.map(async (item) => {
+          // Validate product exists
+          const product = await Product.findByPk(item.product_id);
+          if (!product) {
+            throw new Error(`Product with ID ${item.product_id} not found`);
+          }
+
+          // Create order item with color and size if provided
+          return OrderItem.create({
+            order_id: order.id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: product.price,
+            product_color_id: item.color_id || null,
+            product_size_id: item.size_id || null
+          }, { transaction });
+        })
+      );
+
+      await transaction.commit();
+
+      // Return order with items
+      return {
+        ...order.toJSON(),
+        orderItems: orderItems.map(item => item.toJSON())
+      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  async getOrders(filters = {}) {
+    const { status, page = 1, limit = 10 } = filters;
+
+    const where = {};
+    if (status) where.status = status;
+
+    const orders = await Order.findAndCountAll({
+      where,
+      include: [
+        {
+          model: OrderItem,
+          as: 'orderItems',
+          include: [
+            {
+              model: Product,
+              as: 'product',
+              attributes: ['id', 'name', 'price']
+            },
+            {
+              model: ProductColor,
+              as: 'color',
+              attributes: ['id', 'color_name', 'color_code']
+            },
+            {
+              model: ProductSize,
+              as: 'size',
+              attributes: ['id', 'size_name']
+            }
+          ]
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: (page - 1) * limit,
+      limit
+    });
+
+    return {
+      orders: orders.rows,
+      pagination: {
+        total: orders.count,
+        page,
+        totalPages: Math.ceil(orders.count / limit)
+      }
+    };
+  }
+
+  async getOrderById(orderId) {
+    const order = await Order.findByPk(orderId, {
+      include: [
+        {
+          model: OrderItem,
+          as: 'orderItems',
+          include: [
+            {
+              model: Product,
+              as: 'product',
+              attributes: ['id', 'name', 'price']
+            },
+            {
+              model: ProductColor,
+              as: 'color',
+              attributes: ['id', 'color_name', 'color_code']
+            },
+            {
+              model: ProductSize,
+              as: 'size',
+              attributes: ['id', 'size_name']
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    return order;
+  }
+
+  async updateOrderStatus(orderId, status) {
+    const order = await Order.findByPk(orderId);
+    
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    order.status = status;
+    await order.save();
+
+    return order;
+  }
+}
+
+module.exports = new OrderService(); 
