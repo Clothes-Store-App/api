@@ -226,49 +226,93 @@ const deleteOrder = async (id) => {
 
 class OrderService {
   async createOrder(orderData) {
-    const { name, phone, address, items, total } = orderData;
+    const { name, phone, address, items, total, user_id } = orderData;
+    console.log('🛒 Creating order with data:', { name, phone, address, total, user_id, itemsCount: items.length });
 
     const transaction = await sequelize.transaction();
 
     try {
       // Create the order
+      console.log('📝 Creating order record...');
       const order = await Order.create({
+        user_id,
         name,
         phone,
         address,
         total,
         status: 'PENDING'
       }, { transaction });
+      console.log('✅ Order created with ID:', order.id);
 
       // Create order items
+      console.log('📦 Creating order items...');
       const orderItems = await Promise.all(
-        items.map(async (item) => {
+        items.map(async (item, index) => {
+          console.log(`🔍 Processing item ${index + 1}:`, item);
+          
           // Validate product exists
           const product = await Product.findByPk(item.product_id);
           if (!product) {
+            console.error(`❌ Product not found: ${item.product_id}`);
             throw new Error(`Product with ID ${item.product_id} not found`);
           }
+          console.log(`✅ Product found: ${product.name} - Price: ${product.price}`);
 
-          // Create order item with color and size if provided
-          return OrderItem.create({
+          // Try to find color_size_id from color_id + size_id
+          let colorSizeId = null;
+          if (item.color_id && item.size_id) {
+            try {
+              const { ColorSize } = require('../models');
+              const colorSize = await ColorSize.findOne({
+                where: {
+                  product_color_id: item.color_id,
+                  product_size_id: item.size_id
+                }
+              });
+              colorSizeId = colorSize ? colorSize.id : null;
+              console.log(`🎨 ColorSize found: ${colorSizeId}`);
+            } catch (error) {
+              console.log(`⚠️ Could not find ColorSize: ${error.message}`);
+            }
+          }
+
+          // Create order item (only fields that exist in model)
+          const orderItemData = {
             order_id: order.id,
             product_id: item.product_id,
             quantity: item.quantity,
-            price: product.price,
-            product_color_id: item.color_id || null,
-            product_size_id: item.size_id || null
-          }, { transaction });
+            color_size_id: colorSizeId
+          };
+          console.log(`📋 Creating order item:`, orderItemData);
+          
+          const orderItem = await OrderItem.create(orderItemData, { transaction });
+          console.log(`✅ Order item created with ID: ${orderItem.id}`);
+          
+          return orderItem;
         })
       );
 
       await transaction.commit();
-
+      console.log('🎉 Order creation completed successfully');
+      
+      // Clear cart if user is logged in
+      if (user_id) {
+        try {
+          const CartService = require('./cart.service');
+          await CartService.clearCart(user_id);
+          console.log('✅ Cart cleared for user:', user_id);
+        } catch (error) {
+          console.log('⚠️ Failed to clear cart:', error.message);
+        }
+      }
       // Return order with items
       return {
         ...order.toJSON(),
         orderItems: orderItems.map(item => item.toJSON())
       };
     } catch (error) {
+      console.error('💥 Order creation failed:', error.message);
+      console.error('📋 Error details:', error);
       await transaction.rollback();
       throw error;
     }

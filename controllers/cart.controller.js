@@ -14,7 +14,6 @@ class CartController {
         quantity: parseInt(req.body.quantity) || 1,
         price: parseFloat(req.body.price)
       };
-
       const cartItem = await cartService.addToCart(userId, productData);
       sendResponse(res, STATUS.CREATED, MESSAGE.SUCCESS.CREATED, cartItem);
     } catch (error) {

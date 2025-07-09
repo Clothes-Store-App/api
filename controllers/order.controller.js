@@ -45,14 +45,20 @@ const getAllByAdmin = async (req, res) => {
 
 const create = async (req, res) => {  
   try {
-    const { phone, items, total, name } = req.body;
-    console.log('req.body', req.body);
+    const { phone, items, total, name, address, user_id } = req.body;
+    
+    // Get user_id from request body or from auth token
+    let userId = user_id;
+    if (!userId && req.user) {
+      userId = req.user.id; // From auth middleware
+    }
+    
     // Lấy io instance và adminSockets từ app
     const io = req.app.get('io');
     const adminSockets = req.app.get('adminSockets');
     
     const order = await orderService.createOrder(
-      {phone, name, address, items, total},
+      { phone, name, address, items, total, user_id: userId },
       io,
       adminSockets
     );    
