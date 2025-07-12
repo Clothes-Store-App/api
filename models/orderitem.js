@@ -40,7 +40,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     color_size_id: {
       type: DataTypes.INTEGER,
-      allowNull: true // Để null vì dữ liệu cũ có thể chưa có
+      allowNull: false // Business logic ensures this always has a value
     },
     quantity: {
       type: DataTypes.INTEGER,
