@@ -1,12 +1,15 @@
-const { Order, OrderItem, Product, ProductColor, ProductSize } = require('../models');
+const { Order, OrderItem, Product, ProductColor, ProductSize, ColorSize } = require('../models');
 const { PAGINATION } = require('../constants/pagination');
 const { where, Op } = require('sequelize');
 const NotificationService = require('./notification.service');
 const { sequelize } = require('../models');
 
-const getAllOrders = async () => {
+const getAllOrders = async (userId) => {
   try {
     const orders = await Order.findAll({
+      where: {
+        user_id: userId // Lọc theo user_id
+      },
       include: [
         {
           model: OrderItem,
@@ -15,13 +18,29 @@ const getAllOrders = async () => {
             {
               model: Product,
               as: 'product'
+            },
+            {
+              model: ColorSize,
+              as: 'colorSize',
+              include: [
+                {
+                  model: ProductColor,
+                  as: 'color',
+                  attributes: ['id', 'color_name', 'color_code', 'image']
+                },
+                {
+                  model: ProductSize,
+                  as: 'size',
+                  attributes: ['id', 'size_name']
+                }
+              ]
             }
           ]
         }
       ],
       order: [['createdAt', 'DESC']]
     });
-
+    console.log('orders', orders);
     return orders;
   } catch (error) {
     console.error("Error in getAllOrders:", error);
@@ -80,6 +99,22 @@ const getAllOrdersByAdmin = async ({
             {
               model: Product,
               as: 'product'
+            },
+            {
+              model: ColorSize,
+              as: 'colorSize',
+              include: [
+                {
+                  model: ProductColor,
+                  as: 'color',
+                  attributes: ['id', 'color_name', 'color_code', 'image']
+                },
+                {
+                  model: ProductSize,
+                  as: 'size',
+                  attributes: ['id', 'size_name']
+                }
+              ]
             }
           ]
         }
@@ -161,6 +196,22 @@ const createOrder = async ({phone, name, address, items, total}, io, adminSocket
           {
             model: Product,
             as: 'product'
+          },
+          {
+            model: ColorSize,
+            as: 'colorSize',
+            include: [
+              {
+                model: ProductColor,
+                as: 'color',
+                attributes: ['id', 'color_name', 'color_code', 'image']
+              },
+              {
+                model: ProductSize,
+                as: 'size',
+                attributes: ['id', 'size_name']
+              }
+            ]
           }
         ]
       }]
@@ -203,7 +254,32 @@ const updateOrder = async ({id, status}) => {
     
   // Trả về đơn hàng đã cập nhật với các orderItems
   const updatedOrder = await Order.findByPk(id, {
-    include: [{ model: OrderItem, as: 'orderItems' }]
+    include: [{ 
+      model: OrderItem, 
+      as: 'orderItems',
+      include: [
+        {
+          model: Product,
+          as: 'product'
+        },
+        {
+          model: ColorSize,
+          as: 'colorSize',
+          include: [
+            {
+              model: ProductColor,
+              as: 'color',
+              attributes: ['id', 'color_name', 'color_code', 'image']
+            },
+            {
+              model: ProductSize,
+              as: 'size',
+              attributes: ['id', 'size_name']
+            }
+          ]
+        }
+      ]
+    }]
   });
   
   return updatedOrder;
@@ -337,14 +413,20 @@ class OrderService {
               attributes: ['id', 'name', 'price']
             },
             {
-              model: ProductColor,
-              as: 'color',
-              attributes: ['id', 'color_name', 'color_code']
-            },
-            {
-              model: ProductSize,
-              as: 'size',
-              attributes: ['id', 'size_name']
+              model: ColorSize,
+              as: 'colorSize',
+              include: [
+                {
+                  model: ProductColor,
+                  as: 'color',
+                  attributes: ['id', 'color_name', 'color_code', 'image']
+                },
+                {
+                  model: ProductSize,
+                  as: 'size',
+                  attributes: ['id', 'size_name']
+                }
+              ]
             }
           ]
         }
@@ -377,14 +459,20 @@ class OrderService {
               attributes: ['id', 'name', 'price']
             },
             {
-              model: ProductColor,
-              as: 'color',
-              attributes: ['id', 'color_name', 'color_code']
-            },
-            {
-              model: ProductSize,
-              as: 'size',
-              attributes: ['id', 'size_name']
+              model: ColorSize,
+              as: 'colorSize',
+              include: [
+                {
+                  model: ProductColor,
+                  as: 'color',
+                  attributes: ['id', 'color_name', 'color_code', 'image']
+                },
+                {
+                  model: ProductSize,
+                  as: 'size',
+                  attributes: ['id', 'size_name']
+                }
+              ]
             }
           ]
         }
@@ -412,4 +500,13 @@ class OrderService {
   }
 }
 
-module.exports = new OrderService(); 
+module.exports = {
+  // Export class instance methods first
+  ...new OrderService(),
+  // Then override with specific functions used by controller
+  getAllOrders,
+  getAllOrdersByAdmin,
+  createOrder,
+  updateOrder,
+  deleteOrder
+}; 

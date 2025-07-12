@@ -16,6 +16,7 @@ const postRoute = require("./post.route");
 const chatbotRoute = require("./chatbot.route");
 const productSizeRoute = require("./product-size.route");
 const cartRoute = require("./cart.route");
+const ratingRoute = require("./rating.route");
 const { BASE_ENDPOINT } = require("../constants/endpoints");
 
 router.use(BASE_ENDPOINT.CATEGORY, categoryRoute);
@@ -33,5 +34,6 @@ router.use(BASE_ENDPOINT.POST, postRoute);
 router.use(BASE_ENDPOINT.CHATBOT, chatbotRoute);
 router.use(BASE_ENDPOINT.PRODUCT_SIZE, productSizeRoute);
 router.use(BASE_ENDPOINT.CART, cartRoute);
+router.use(BASE_ENDPOINT.RATING, ratingRoute);
 
 module.exports = router;

@@ -158,20 +158,12 @@ const register = async (req, res) => {
       );
     }
 
-    const authData = await authService.register(name, email, password, phone);
+    const result = await authService.register(name, email, password, phone);
     
-    // Lưu token vào cookies
-    setTokenCookies(res, authData.accessToken, authData.refreshToken);
-    
-    // Kiểm tra User-Agent để phát hiện mobile client
-    const userAgent = req.headers['user-agent'] || '';
-    const isMobile = userAgent.includes('ReactNative') || 
-                    req.headers['x-client-type'] === 'mobile';
-    
-    // Trả về thông tin user và token nếu là mobile client
-    sendResponse(res, STATUS.CREATED, MESSAGE.SUCCESS.REGISTRATION_SUCCESS, {
-      user: authData.user,
-      accessToken: isMobile ? authData.accessToken : undefined
+    // Không lưu token vào cookies vì user chưa xác thực email
+    // Trả về thông báo cần xác thực email
+    sendResponse(res, STATUS.CREATED, result.message, {
+      user: result.user
     });
   } catch (error) {
     console.log('Registration error:', error.message);
@@ -179,6 +171,77 @@ const register = async (req, res) => {
       res,
       error.message === MESSAGE.ERROR.EMAIL_EXISTS ? STATUS.CONFLICT : STATUS.BAD_REQUEST,
       error.message || MESSAGE.ERROR.REGISTRATION_FAILED,
+      null,
+      false,
+      error.message
+    );
+  }
+};
+
+const verifyEmail = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    
+    if (!email || !code) {
+      return sendResponse(
+        res,
+        STATUS.BAD_REQUEST,
+        'Email và mã xác thực là bắt buộc',
+        null,
+        false
+      );
+    }
+
+    const result = await authService.verifyEmail(email, code);
+    
+    // Lưu token vào cookies sau khi xác thực thành công
+    setTokenCookies(res, result.accessToken, result.refreshToken);
+    
+    // Kiểm tra User-Agent để phát hiện mobile client
+    const userAgent = req.headers['user-agent'] || '';
+    const isMobile = userAgent.includes('ReactNative') || 
+                    req.headers['x-client-type'] === 'mobile';
+    
+    // Trả về thông tin user và token nếu là mobile client
+    sendResponse(res, STATUS.SUCCESS, result.message, {
+      user: result.user,
+      accessToken: isMobile ? result.accessToken : undefined
+    });
+  } catch (error) {
+    console.log('Verify email error:', error.message);
+    sendResponse(
+      res,
+      STATUS.BAD_REQUEST,
+      error.message || 'Xác thực email thất bại',
+      null,
+      false,
+      error.message
+    );
+  }
+};
+
+const resendVerificationEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return sendResponse(
+        res,
+        STATUS.BAD_REQUEST,
+        'Email là bắt buộc',
+        null,
+        false
+      );
+    }
+
+    const result = await authService.resendVerificationEmail(email);
+    sendResponse(res, STATUS.SUCCESS, result.message);
+  } catch (error) {
+    console.log('Resend verification email error:', error.message);
+    sendResponse(
+      res,
+      STATUS.BAD_REQUEST,
+      error.message || 'Gửi lại mã xác thực thất bại',
       null,
       false,
       error.message
@@ -211,6 +274,8 @@ const ApiAuthController = {
   logout,
   refresh,
   register,
+  verifyEmail,
+  resendVerificationEmail,
   getProfile
 };
 
