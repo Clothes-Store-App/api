@@ -44,7 +44,28 @@ router.post(
   ApiAuthController.register
 );
 
+// Xác thực email
+router.post(
+  AUTH.VERIFY_EMAIL,
+  [
+    body('email').isEmail().withMessage(MESSAGE.VALIDATION.INVALID('Email')),
+    body('code').notEmpty().withMessage(MESSAGE.VALIDATION.REQUIRED('Mã xác thực'))
+  ],
+  validate,
+  ApiAuthController.verifyEmail
+);
+
+// Gửi lại mã xác thực email
+router.post(
+  AUTH.RESEND_VERIFICATION_EMAIL,
+  [
+    body('email').isEmail().withMessage(MESSAGE.VALIDATION.INVALID('Email'))
+  ],
+  validate,
+  ApiAuthController.resendVerificationEmail
+);
+
 // Lấy thông tin profile
-router.get('/profile', auth, ApiAuthController.getProfile);
+router.get(AUTH.PROFILE, auth, ApiAuthController.getProfile);
 
 module.exports = router; 

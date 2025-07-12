@@ -10,7 +10,11 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // define association here
+      // Quan hệ với Rating
+      User.hasMany(models.Rating, {
+        foreignKey: 'user_id',
+        as: 'ratings'
+      });
     }
   }
   User.init({
@@ -50,6 +54,19 @@ module.exports = (sequelize, DataTypes) => {
     },
     phone: {
       type: DataTypes.STRING,
+      allowNull: true
+    },
+    email_verified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
+    email_verification_code: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    email_verification_expires: {
+      type: DataTypes.DATE,
       allowNull: true
     }
   }, {

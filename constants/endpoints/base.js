@@ -23,4 +23,5 @@ module.exports = {
   CHATBOT: "/chatbot",
   PRODUCT_SIZE: "/product-sizes",
   CART: "/cart",
+  RATING: "/ratings",
 };

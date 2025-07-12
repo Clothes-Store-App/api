@@ -6,7 +6,8 @@ const { PAGINATION } = require('../constants/pagination');
 
 const getAll = async (req, res) => {
   try {
-    const result = await orderService.getAllOrders();
+    const userId = req.user.id; // Lấy user_id từ auth middleware
+    const result = await orderService.getAllOrders(userId);
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.GET_SUCCESS, result);
   } catch (error) {
     console.error("Controller error:", error);
