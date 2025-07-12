@@ -180,14 +180,95 @@ const sendOrderNotificationViaSocket = (order, io, adminSockets) => {
 };
 
 const createOrder = async ({phone, name, address, items, total}, io, adminSockets) => {  
+  const transaction = await sequelize.transaction();
   try {
-    // 1. Tạo order
-    const order = await Order.create({phone, name, address, total});    
-    // 2. Tạo order items
-    const orderItemsWithOrderId = items.map(item => ({ ...item, order_id: order.id }));
-    await OrderItem.bulkCreate(orderItemsWithOrderId);
     
-    // 3. Lấy order đầy đủ với relations
+    // 1. Tạo order (trong transaction)
+    const order = await Order.create({phone, name, address, total}, { transaction });    
+    
+    // 2. Xử lý và tạo order items với color_size_id mapping
+    const orderItemsData = [];
+    
+    for (const item of items) {
+      let colorSizeId = null;
+      let price = 0;
+      
+      // Lấy giá sản phẩm từ database (trong transaction)
+      const product = await Product.findByPk(item.product_id, { transaction });
+      if (!product) {
+        throw new Error(`Product with ID ${item.product_id} not found`);
+      }
+      price = product.price;
+      
+      // Xử lý color_size_id - ĐẢM BẢO LUÔN CÓ GIÁ TRỊ
+      if (item.color_id && item.size_id) {
+        // Tìm ColorSize hiện có (trong transaction)
+        let colorSize = await ColorSize.findOne({
+          where: {
+            product_color_id: item.color_id,
+            product_size_id: item.size_id
+          },
+          transaction
+        });
+        
+        // Nếu không tìm thấy, tạo mới (trong transaction)
+        if (!colorSize) {
+          console.log(`⚠️ ColorSize not found, creating new one for color: ${item.color_id}, size: ${item.size_id}`);
+          
+          // Validate color và size tồn tại (trong transaction)
+          const [productColor, productSize] = await Promise.all([
+            ProductColor.findByPk(item.color_id, { transaction }),
+            ProductSize.findByPk(item.size_id, { transaction })
+          ]);
+          
+          if (!productColor || productColor.product_id !== product.id) {
+            throw new Error(`Invalid color ID ${item.color_id} for product ${item.product_id}`);
+          }
+          
+          if (!productSize) {
+            throw new Error(`Invalid size ID ${item.size_id}`);
+          }
+          
+          // Tạo ColorSize mới (trong transaction)
+          colorSize = await ColorSize.create({
+            product_id: product.id,
+            product_color_id: item.color_id,
+            product_size_id: item.size_id
+          }, { transaction });
+          
+          console.log(`✅ Created new ColorSize with ID: ${colorSize.id}`);
+        }
+        
+        colorSizeId = colorSize.id;
+      } else {
+        // Nếu không có color_id hoặc size_id, reject order
+        throw new Error(`Missing color_id or size_id for product ${item.product_id}. color_id: ${item.color_id}, size_id: ${item.size_id}`);
+      }
+      
+      // Đảm bảo colorSizeId không bao giờ null
+      if (!colorSizeId) {
+        throw new Error(`Failed to determine color_size_id for product ${item.product_id}`);
+      }
+      
+      // Tạo order item data với các field cần thiết
+      const orderItemData = {
+        order_id: order.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: price,
+        color_size_id: colorSizeId // ĐẢM BẢO LUÔN CÓ GIÁ TRỊ
+      };
+      
+      orderItemsData.push(orderItemData);
+    }
+    
+    // Bulk create order items (trong transaction)
+    await OrderItem.bulkCreate(orderItemsData, { transaction });
+    
+    // Commit transaction - Tất cả thành công
+    await transaction.commit();
+    
+    // 3. Lấy order đầy đủ với relations (sau khi commit)
     const createdOrder = await Order.findByPk(order.id, {
       include: [{ 
         model: OrderItem, 
@@ -238,7 +319,9 @@ const createOrder = async ({phone, name, address, items, total}, io, adminSocket
     
     return createdOrder;
   } catch (error) {
-    console.error('Error in createOrder:', error);
+    // Rollback transaction nếu có lỗi
+    await transaction.rollback();
+    console.error('❌ Order creation transaction rolled back due to error:', error);
     throw error;
   }
 };
@@ -320,58 +403,96 @@ class OrderService {
       }, { transaction });
       console.log('✅ Order created with ID:', order.id);
 
-      // Create order items
+      // Create order items with proper color_size_id mapping
       console.log('📦 Creating order items...');
-      const orderItems = await Promise.all(
-        items.map(async (item, index) => {
-          console.log(`🔍 Processing item ${index + 1}:`, item);
-          
-          // Validate product exists
-          const product = await Product.findByPk(item.product_id);
-          if (!product) {
-            console.error(`❌ Product not found: ${item.product_id}`);
-            throw new Error(`Product with ID ${item.product_id} not found`);
-          }
-          console.log(`✅ Product found: ${product.name} - Price: ${product.price}`);
-
-          // Try to find color_size_id from color_id + size_id
-          let colorSizeId = null;
-          if (item.color_id && item.size_id) {
-            try {
-              const { ColorSize } = require('../models');
-              const colorSize = await ColorSize.findOne({
-                where: {
-                  product_color_id: item.color_id,
-                  product_size_id: item.size_id
-                }
-              });
-              colorSizeId = colorSize ? colorSize.id : null;
-              console.log(`🎨 ColorSize found: ${colorSizeId}`);
-            } catch (error) {
-              console.log(`⚠️ Could not find ColorSize: ${error.message}`);
-            }
-          }
-
-          // Create order item (only fields that exist in model)
-          const orderItemData = {
-            order_id: order.id,
-            product_id: item.product_id,
-            quantity: item.quantity,
-            color_size_id: colorSizeId
-          };
-          console.log(`📋 Creating order item:`, orderItemData);
-          
-          const orderItem = await OrderItem.create(orderItemData, { transaction });
-          console.log(`✅ Order item created with ID: ${orderItem.id}`);
-          
-          return orderItem;
-        })
-      );
-
-      await transaction.commit();
-      console.log('🎉 Order creation completed successfully');
+      const orderItemsData = [];
       
-      // Clear cart if user is logged in
+      for (const item of items) {
+        console.log(`🔍 Processing item:`, item);
+        
+        // Validate product exists (trong transaction)
+        const product = await Product.findByPk(item.product_id, { transaction });
+        if (!product) {
+          console.error(`❌ Product not found: ${item.product_id}`);
+          throw new Error(`Product with ID ${item.product_id} not found`);
+        }
+        console.log(`✅ Product found: ${product.name} - Price: ${product.price}`);
+
+        let colorSizeId = null;
+        
+        // Xử lý color_size_id - ĐẢM BẢO LUÔN CÓ GIÁ TRỊ
+        if (item.color_id && item.size_id) {
+          // Tìm ColorSize hiện có (trong transaction)
+          let colorSize = await ColorSize.findOne({
+            where: {
+              product_color_id: item.color_id,
+              product_size_id: item.size_id
+            },
+            transaction
+          });
+          
+          // Nếu không tìm thấy, tạo mới (trong transaction)
+          if (!colorSize) {
+            console.log(`⚠️ ColorSize not found, creating new one for color: ${item.color_id}, size: ${item.size_id}`);
+            
+            // Validate color và size tồn tại (trong transaction)
+            const [productColor, productSize] = await Promise.all([
+              ProductColor.findByPk(item.color_id, { transaction }),
+              ProductSize.findByPk(item.size_id, { transaction })
+            ]);
+            
+            if (!productColor || productColor.product_id !== product.id) {
+              throw new Error(`Invalid color ID ${item.color_id} for product ${item.product_id}`);
+            }
+            
+            if (!productSize) {
+              throw new Error(`Invalid size ID ${item.size_id}`);
+            }
+            
+            // Tạo ColorSize mới (trong transaction)
+            colorSize = await ColorSize.create({
+              product_id: product.id,
+              product_color_id: item.color_id,
+              product_size_id: item.size_id
+            }, { transaction });
+            
+            console.log(`✅ Created new ColorSize with ID: ${colorSize.id}`);
+          }
+          
+          colorSizeId = colorSize.id;
+          console.log(`✅ Using ColorSize ID: ${colorSizeId} for color: ${item.color_id}, size: ${item.size_id}`);
+        } else {
+          // Nếu không có color_id hoặc size_id, reject order
+          throw new Error(`Missing color_id or size_id for product ${item.product_id}. color_id: ${item.color_id}, size_id: ${item.size_id}`);
+        }
+        
+        // Đảm bảo colorSizeId không bao giờ null
+        if (!colorSizeId) {
+          throw new Error(`Failed to determine color_size_id for product ${item.product_id}`);
+        }
+
+        // Create order item data với các field cần thiết
+        const orderItemData = {
+          order_id: order.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price: product.price,
+          color_size_id: colorSizeId // ĐẢM BẢO LUÔN CÓ GIÁ TRỊ
+        };
+        
+        orderItemsData.push(orderItemData);
+        console.log(`📋 Order item data prepared:`, orderItemData);
+      }
+      
+      // Bulk create order items (trong transaction)
+      const orderItems = await OrderItem.bulkCreate(orderItemsData, { transaction });
+      console.log(`✅ Created ${orderItems.length} order items`);
+
+      // Commit transaction - Tất cả thành công
+      await transaction.commit();
+      console.log('🎉 Order creation transaction committed successfully');
+      
+      // Clear cart if user is logged in (sau khi commit)
       if (user_id) {
         try {
           const CartService = require('./cart.service');
@@ -381,6 +502,7 @@ class OrderService {
           console.log('⚠️ Failed to clear cart:', error.message);
         }
       }
+      
       // Return order with items
       return {
         ...order.toJSON(),
