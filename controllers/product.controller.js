@@ -2,10 +2,7 @@ const productService = require("../services/product.service");
 const sendResponse = require("../utils/responseFormatter");
 const { MESSAGE } = require("../constants/messages");
 const { STATUS } = require("../constants/httpStatusCodes");
-const { uploadToCloudinary, deleteFromCloudinary } = require("../utils/cloudinary");
-const { Product, ProductColor, Size, ColorSize, ProductSize } = require('../models');
-const cloudinary = require('../utils/cloudinary');
-const { Op } = require('sequelize');
+const { deleteFromCloudinary } = require("../utils/cloudinary");
 
 const getAll = async (req, res) => {
   try {
@@ -67,169 +64,59 @@ const createProduct = async (req, res) => {
     // Parse colors từ string JSON thành object
     const colorsData = JSON.parse(colors);
     
-    // Create product
-    const product = await Product.create({
+    // Chuẩn bị dữ liệu cho service
+    const productData = {
       name,
       description,
       price,
-      category_id
-    });
+      category_id,
+      colors: colorsData,
+      files: req.files
+    };
 
-    // Upload và xử lý ảnh
-    const uploadedImages = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        try {
-          const imageUrl = await uploadToCloudinary(file, 'products');
-          uploadedImages.push(imageUrl);
-        } catch (uploadError) {
-          console.error('Error uploading image:', uploadError);
-          // Tiếp tục với ảnh tiếp theo nếu có lỗi
-          uploadedImages.push(null);
-        }
-      }
-    }
-
-    // Process colors and their images
-    if (colorsData && Array.isArray(colorsData)) {
-      for (let i = 0; i < colorsData.length; i++) {
-        const colorData = colorsData[i];
-        
-        // Lấy ảnh tương ứng cho màu này (nếu có)
-        const imageUrl = uploadedImages[i] || null;
-
-        // Create color with image
-        const productColor = await ProductColor.create({
-          product_id: product.id,
-          color_name: colorData.color_name,
-          color_code: colorData.color_code,
-          image: imageUrl
-        });
-
-        // Add sizes for this color
-        if (colorData.sizes && colorData.sizes.length > 0) {
-          const colorSizes = colorData.sizes.map(sizeId => ({
-            product_id: product.id,
-            product_color_id: productColor.id,
-            product_size_id: parseInt(sizeId)
-          }));
-          await ColorSize.bulkCreate(colorSizes);
-        }
-      }
-    }
-
-    // Fetch the complete product with its relations
-    const completeProduct = await Product.findByPk(product.id, {
-      include: [{
-        model: ProductColor,
-        as: 'colors',
-        include: [{
-          model: ProductSize,
-          as: 'sizes',
-          through: { attributes: [] }
-        }]
-      }]
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Tạo sản phẩm thành công',
-      data: completeProduct
-    });
+    const newProduct = await productService.createProduct(productData);
+    sendResponse(res, STATUS.CREATED, MESSAGE.SUCCESS.CREATED, newProduct);
   } catch (error) {
-    console.error('Error creating product:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Lỗi khi tạo sản phẩm', 
-      error: error.message 
-    });
+    sendResponse(
+      res,
+      STATUS.SERVER_ERROR,
+      MESSAGE.ERROR.INTERNAL,
+      null,
+      false,
+      error.message
+    );
   }
 };
 
 const updateProduct = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name, description, price } = req.body;
-
-    // Update product basic info
-    const product = await Product.findByPk(id);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    await product.update({
+    const productId = req.params.id;
+    const { name, description, price, category_id, colors } = req.body;
+    
+    // Parse colors từ string JSON thành object
+    const colorsData = JSON.parse(colors);
+    
+    // Chuẩn bị dữ liệu cho service
+    const productData = {
       name,
       description,
-      price
-    });
+      price,
+      category_id,
+      colors: colorsData,
+      files: req.files
+    };
 
-    // Delete existing colors and their relationships
-    await ProductColor.destroy({
-      where: { product_id: id }
-    });
-
-    // Process colors and their images
-    const colors = [];
-    let colorIndex = 0;
-    
-    while (req.body[`colors[${colorIndex}][color_name]`] !== undefined) {
-      const colorData = {
-        color_name: req.body[`colors[${colorIndex}][color_name]`],
-        color_code: req.body[`colors[${colorIndex}][color_code]`],
-        sizes: JSON.parse(req.body[`colors[${colorIndex}][sizes]`] || '[]')
-      };
-
-      // Handle image upload for this color
-      const colorImage = req.files[`colors[${colorIndex}][image]`];
-      let imageUrl = req.body[`colors[${colorIndex}][existing_image]`]; // Keep existing image if provided
-      
-      if (colorImage && colorImage[0]) {
-        // Upload to Cloudinary using buffer
-        const result = await cloudinary.uploader.upload(
-          `data:${colorImage[0].mimetype};base64,${colorImage[0].buffer.toString('base64')}`,
-          {
-            folder: 'products'
-          }
-        );
-        imageUrl = result.secure_url;
-      }
-
-      // Create color with image
-      const productColor = await ProductColor.create({
-        product_id: product.id,
-        color_name: colorData.color_name,
-        color_code: colorData.color_code,
-        image: imageUrl
-      });
-
-      // Add sizes for this color
-      if (colorData.sizes.length > 0) {
-        const colorSizes = colorData.sizes.map(size => ({
-          color_id: productColor.id,
-          size_id: size.id
-        }));
-        await ColorSize.bulkCreate(colorSizes);
-      }
-
-      colors.push(productColor);
-      colorIndex++;
-    }
-
-    // Fetch the updated product with its relations
-    const updatedProduct = await Product.findByPk(id, {
-      include: [{
-        model: ProductColor,
-        include: [{
-          model: Size,
-          through: { attributes: [] }
-        }]
-      }]
-    });
-
-    res.json(updatedProduct);
+    const updatedProduct = await productService.updateProduct(productId, productData);
+    sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.UPDATED, updatedProduct);
   } catch (error) {
-    console.error('Error updating product:', error);
-    res.status(500).json({ message: 'Error updating product', error: error.message });
+    sendResponse(
+      res,
+      STATUS.SERVER_ERROR,
+      MESSAGE.ERROR.INTERNAL,
+      null,
+      false,
+      error.message
+    );
   }
 };
 
