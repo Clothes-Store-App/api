@@ -9,9 +9,10 @@ router.get(BASE_ENDPOINT.BASE, auth, ApiOrderController.getAll);
 
 router.get(BASE_ENDPOINT.ADMIN_LIST, auth, isAdmin, ApiOrderController.getAllByAdmin)
 
-// Tạo order (user đã đăng nhập hoặc không)
+// Tạo order (user đã đăng nhập)
 router.post(
   BASE_ENDPOINT.BASE, 
+  auth,
   ApiOrderController.create
 );
 
