@@ -62,9 +62,6 @@ router.put(
   auth,
   isAdmin,
   uploadProductImages,
-  [
-    ...productValidation.map(validator => validator.optional())
-  ],
   validate,
   ApiProductController.updateProduct
 );

@@ -176,31 +176,52 @@ const getProductById = async (id) => {
 };
 
 const createProduct = async (productData) => {
-  const { colors, ...productInfo } = productData;
+  const { colors, files, ...productInfo } = productData;
   
   // Tạo sản phẩm
   const product = await Product.create(productInfo);
 
-  // Nếu có thông tin về màu sắc
-  if (colors && colors.length > 0) {
-    for (const color of colors) {
-      const { sizes, ...colorInfo } = color;
+  // Upload và xử lý ảnh
+  const uploadedImages = [];
+  if (files && files.length > 0) {
+    const { uploadToCloudinary } = require('../utils/cloudinary');
+    
+    for (const file of files) {
+      try {
+        const imageUrl = await uploadToCloudinary(file, 'products');
+        uploadedImages.push(imageUrl);
+      } catch (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        // Tiếp tục với ảnh tiếp theo nếu có lỗi
+        uploadedImages.push(null);
+      }
+    }
+  }
+
+  // Xử lý colors và sizes
+  if (colors && Array.isArray(colors)) {
+    for (let i = 0; i < colors.length; i++) {
+      const colorData = colors[i];
       
-      // Tạo màu sắc cho sản phẩm
+      // Lấy ảnh tương ứng cho màu này (nếu có)
+      const imageUrl = uploadedImages[i] || null;
+
+      // Create color with image
       const productColor = await ProductColor.create({
-        ...colorInfo,
-        product_id: product.id
+        product_id: product.id,
+        color_name: colorData.color_name,
+        color_code: colorData.color_code,
+        image: imageUrl
       });
 
-      // Nếu có thông tin về size
-      if (sizes && sizes.length > 0) {
-        for (const size of sizes) {
-          await ColorSize.create({
-            product_id: product.id,
-            product_color_id: productColor.id,
-            product_size_id: size.id
-          });
-        }
+      // Add sizes for this color
+      if (colorData.sizes && colorData.sizes.length > 0) {
+        const colorSizes = colorData.sizes.map(sizeId => ({
+          product_id: product.id,
+          product_color_id: productColor.id,
+          product_size_id: parseInt(sizeId)
+        }));
+        await ColorSize.bulkCreate(colorSizes);
       }
     }
   }
@@ -209,7 +230,7 @@ const createProduct = async (productData) => {
 };
 
 const updateProduct = async (id, productData) => {
-  const { colors, ...productInfo } = productData;
+  const { colors, files, ...productInfo } = productData;
   
   // Cập nhật thông tin sản phẩm
   const product = await Product.findByPk(id);
@@ -217,30 +238,52 @@ const updateProduct = async (id, productData) => {
   
   await product.update(productInfo);
 
-  // Nếu có cập nhật màu sắc
-  if (colors && colors.length > 0) {
-    // Xóa tất cả màu sắc và size cũ
-    await ProductColor.destroy({
-      where: { product_id: id }
-    });
+  // Xóa tất cả màu sắc và size cũ
+  await ProductColor.destroy({
+    where: { product_id: id }
+  });
 
-    // Thêm màu sắc và size mới
-    for (const color of colors) {
-      const { sizes, ...colorInfo } = color;
+  // Upload và xử lý ảnh
+  const uploadedImages = [];
+  if (files && files.length > 0) {
+    const { uploadToCloudinary } = require('../utils/cloudinary');
+    
+    for (const file of files) {
+      try {
+        const imageUrl = await uploadToCloudinary(file, 'products');
+        uploadedImages.push(imageUrl);
+      } catch (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        // Tiếp tục với ảnh tiếp theo nếu có lỗi
+        uploadedImages.push(null);
+      }
+    }
+  }
+
+  // Xử lý colors và sizes
+  if (colors && Array.isArray(colors)) {
+    for (let i = 0; i < colors.length; i++) {
+      const colorData = colors[i];
       
+      // Lấy ảnh tương ứng cho màu này (nếu có)
+      const imageUrl = uploadedImages[i] || null;
+
+      // Create color with image
       const productColor = await ProductColor.create({
-        ...colorInfo,
-        product_id: id
+        product_id: id,
+        color_name: colorData.color_name,
+        color_code: colorData.color_code,
+        image: imageUrl
       });
 
-      if (sizes && sizes.length > 0) {
-        for (const size of sizes) {
-          await ColorSize.create({
-            product_id: id,
-            product_color_id: productColor.id,
-            product_size_id: size.id
-          });
-        }
+      // Add sizes for this color
+      if (colorData.sizes && colorData.sizes.length > 0) {
+        const colorSizes = colorData.sizes.map(sizeId => ({
+          product_id: id,
+          product_color_id: productColor.id,
+          product_size_id: parseInt(sizeId)
+        }));
+        await ColorSize.bulkCreate(colorSizes);
       }
     }
   }
