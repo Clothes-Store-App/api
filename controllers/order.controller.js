@@ -53,7 +53,6 @@ const create = async (req, res) => {
     if (!userId && req.user) {
       userId = req.user.id; // From auth middleware
     }
-    
     // Lấy io instance và adminSockets từ app
     const io = req.app.get('io');
     const adminSockets = req.app.get('adminSockets');

@@ -179,12 +179,12 @@ const sendOrderNotificationViaSocket = (order, io, adminSockets) => {
   }
 };
 
-const createOrder = async ({phone, name, address, items, total}, io, adminSockets) => {  
+const createOrder = async ({phone, name, address, items, total, user_id}, io, adminSockets) => { 
   const transaction = await sequelize.transaction();
   try {
     
     // 1. Tạo order (trong transaction)
-    const order = await Order.create({phone, name, address, total}, { transaction });    
+    const order = await Order.create({phone, name, address, items, total, user_id}, { transaction });    
     
     // 2. Xử lý và tạo order items với color_size_id mapping
     const orderItemsData = [];
