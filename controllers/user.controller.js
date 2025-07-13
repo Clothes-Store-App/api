@@ -197,6 +197,35 @@ const deleteImage = async (req, res) => {
   }
 };
 
+// Thêm controller đổi mật khẩu
+const changePassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    
+    // Validate input
+    if (!oldPassword || !newPassword) {
+      return sendResponse(
+        res,
+        STATUS.BAD_REQUEST,
+        'Mật khẩu cũ và mật khẩu mới là bắt buộc',
+        null,
+        false
+      );
+    }
+
+    const result = await userService.changePassword(req.user.id, oldPassword, newPassword);
+    sendResponse(res, STATUS.SUCCESS, result.message);
+  } catch (error) {
+    sendResponse(
+      res,
+      STATUS.BAD_REQUEST,
+      error.message,
+      null,
+      false
+    );
+  }
+};
+
 const ApiUserController = {
   getAll,
   create,
@@ -205,7 +234,8 @@ const ApiUserController = {
   forgotPassword,
   verifyResetCode,
   resetPassword,
-  deleteImage
+  deleteImage,
+  changePassword // Thêm vào exports
 };
 
 module.exports = ApiUserController; 

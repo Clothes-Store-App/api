@@ -91,10 +91,8 @@ const getRatingsByProduct = async (req, res) => {
 const getRatingsByUser = async (req, res) => {
   try {
     const userId = req.user.id; // Lấy từ auth middleware
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
     
-    const result = await ratingService.getRatingsByUser(userId, page, limit);
+    const result = await ratingService.getRatingsByUser(userId);
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.GET_SUCCESS, result);
   } catch (error) {
     sendResponse(
