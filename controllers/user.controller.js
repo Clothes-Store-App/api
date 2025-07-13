@@ -119,7 +119,7 @@ const forgotPassword = async (req, res) => {
 const verifyResetCode = async (req, res) => {
   try {
     const { email, code } = req.body;
-    
+    console.log("aaaaa", email, code);
     if (!email || !code) {
       return sendResponse(
         res,
@@ -130,9 +130,11 @@ const verifyResetCode = async (req, res) => {
       );
     }
 
-    const result = await userService.verifyResetCode(email, code);
+    const result = await userService.verifyResetCode({email, code});
+    console.log("result", result);
     sendResponse(res, STATUS.SUCCESS, 'Xác thực thành công', result);
   } catch (error) {
+    console.log("error", error);
     sendResponse(
       res,
       STATUS.BAD_REQUEST,
