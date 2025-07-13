@@ -66,6 +66,8 @@ router.put(
   ApiProductController.updateProduct
 );
 
+
 router.delete(BASE_ENDPOINT.BY_ID, auth, isAdmin, ApiProductController.remove);
+
 
 module.exports = router;

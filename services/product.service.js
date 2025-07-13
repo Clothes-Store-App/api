@@ -296,7 +296,7 @@ const deleteProduct = async (id) => {
   if (!product) throw new Error('Product not found');
   
   // ProductColor và ColorSize sẽ tự động bị xóa do có onDelete: 'CASCADE'
-  return await product.update({ status: false });
+  return await product.update({ status: product.status ? false : true });
 };
 
 module.exports = {
