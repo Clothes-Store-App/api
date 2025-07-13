@@ -128,15 +128,6 @@ const remove = async (req, res) => {
     if (!product) {
       return sendResponse(res, STATUS.NOT_FOUND, MESSAGE.ERROR.NOT_FOUND);
     }
-
-    // Xóa tất cả ảnh của các màu sắc
-    if (product.ProductColors) {
-      for (const color of product.ProductColors) {
-        if (color.image) {
-          await deleteFromCloudinary(color.image);
-        }
-      }
-    }
     
     await productService.deleteProduct(productId);
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.DELETED);
