@@ -17,6 +17,8 @@ router.get(BASE_ENDPOINT.BY_ID, ApiProductController.show);
 // Route với phân quyền admin
 router.get(
   BASE_ENDPOINT.ADMIN_LIST,
+  auth,
+  isAdmin,
   ApiProductController.getAllByAdmin
 );
 

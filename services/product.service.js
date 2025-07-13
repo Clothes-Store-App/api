@@ -1,10 +1,26 @@
 const { Op } = require('sequelize');
 const { Product, ProductColor, ProductSize, ColorSize } = require('../models');
 
-const getAllProducts = async () => {
+const getAllProducts = async (search = '', category_id, order = 'DESC') => {
+  const whereClause = {};
+
+  if (search) {
+    whereClause.name = {
+      [Op.like]: `%${search}%`
+    };
+  }
+
+  if (category_id) {
+    whereClause.category_id = category_id;
+  }
+
+  // Kiểm tra order truyền vào có hợp lệ không
+  const sortOrder = order === 'ASC' ? 'ASC' : 'DESC';
+
   const products = await Product.findAll({
     where: {
-      status: true // Chỉ lấy sản phẩm đang active
+      status: true,
+      ...whereClause
     },
     attributes: [
       'id',
@@ -40,15 +56,14 @@ const getAllProducts = async () => {
         ]
       }
     ],
-    order: [['createdAt', 'DESC']] // Sắp xếp sản phẩm mới nhất lên đầu
+    order: [['price', sortOrder]] // sắp xếp theo giá
   });
 
-  // Filter và format lại response
   const formattedProducts = products
-    .filter(product => product.colors && product.colors.length > 0) // Chỉ lấy sản phẩm có màu sắc
+    .filter(product => product.colors && product.colors.length > 0)
     .map(product => {
       const formattedColors = product.colors
-        .filter(color => color.colorSizes && color.colorSizes.length > 0) // Chỉ lấy màu có size
+        .filter(color => color.colorSizes && color.colorSizes.length > 0)
         .map(color => ({
           id: color.id,
           color_name: color.color_name,
@@ -70,34 +85,38 @@ const getAllProducts = async () => {
         colors: formattedColors
       };
     })
-    .filter(product => product.colors.length > 0); // Chỉ lấy sản phẩm có ít nhất 1 màu có size
+    .filter(product => product.colors.length > 0);
 
   return formattedProducts;
 };
 
-const getAllProductsByAdmin = async (page = 1, limit = 10, search = '', category_id = null) => {
+const getAllProductsByAdmin = async ({page = 1, limit = 10, search = '', category_id = null, status = null}) => {
   const offset = (page - 1) * limit;
-  
+
   const whereClause = {};
-  
+
   if (search) {
     whereClause.name = {
       [Op.like]: `%${search}%`
     };
   }
-  
+
   if (category_id) {
     whereClause.category_id = category_id;
   }
 
-  // Count distinct products only (without include to avoid join multiplication)
+  if (status !== null) {
+    whereClause.status = status;
+  }
+
+  // Đếm tổng số sản phẩm (tránh JOIN để không bị nhân bản)
   const count = await Product.count({
     where: whereClause,
     distinct: true,
     col: 'id'
   });
 
-  // Get products with full relationships
+  // Lấy danh sách sản phẩm với mối quan hệ
   const rows = await Product.findAll({
     where: whereClause,
     include: [
@@ -129,6 +148,7 @@ const getAllProductsByAdmin = async (page = 1, limit = 10, search = '', category
     products: rows
   };
 };
+
 
 const getTopSellingProducts = async () => {
   return await Product.findAll({

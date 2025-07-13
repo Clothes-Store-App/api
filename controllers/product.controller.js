@@ -6,7 +6,10 @@ const { deleteFromCloudinary } = require("../utils/cloudinary");
 
 const getAll = async (req, res) => {
   try {
-    const products = await productService.getAllProducts();
+    const search = req.query.search || '';
+    const category_id = req.query.category_id ? parseInt(req.query.category_id) : null;
+    const order = req.query.order || 'DESC';
+    const products = await productService.getAllProducts(search, category_id, order);
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.GET_SUCCESS, products);
   } catch (error) {
     sendResponse(
@@ -26,7 +29,8 @@ const getAllByAdmin = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
     const category_id = req.query.category_id ? parseInt(req.query.category_id) : null;
-    const result = await productService.getAllProductsByAdmin(page, limit, search, category_id);
+    const status = req.query.status || null;
+    const result = await productService.getAllProductsByAdmin({page, limit, search, category_id, status});
     
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.GET_SUCCESS, result);
   } catch (error) {
