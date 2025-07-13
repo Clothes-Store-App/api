@@ -76,4 +76,12 @@ router.post(
   ApiUserController.resetPassword
 );
 
+// Route đổi mật khẩu
+router.post(
+  AUTH.CHANGE_PASSWORD,
+  auth, // Middleware xác thực
+  validate,
+  ApiUserController.changePassword
+);
+
 module.exports = router; 

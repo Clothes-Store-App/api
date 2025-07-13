@@ -1,4 +1,4 @@
-const { Rating, User, Product } = require('../models');
+const { Rating, User, Product, ProductColor } = require('../models');
 const { Op } = require('sequelize');
 
 const createRating = async (ratingData) => {
@@ -127,11 +127,9 @@ const getRatingsByProduct = async (productId) => {
   }
 };
 
-const getRatingsByUser = async (userId, page = 1, limit = 10) => {
+const getRatingsByUser = async (userId) => {
   try {
-    const offset = (page - 1) * limit;
-    
-    const { count, rows } = await Rating.findAndCountAll({
+    const ratings = await Rating.findAll({
       where: {
         user_id: userId
       },
@@ -139,21 +137,20 @@ const getRatingsByUser = async (userId, page = 1, limit = 10) => {
         {
           model: Product,
           as: 'product',
-          attributes: ['id', 'name', 'price']
+          attributes: ['id', 'name', 'price'],
+          include: [
+            {
+              model: ProductColor,
+              as: 'colors',
+              attributes: ['id', 'color_name', 'color_code', 'image'],
+            }
+          ]
         }
       ],
-      order: [['createdAt', 'DESC']],
-      limit,
-      offset
+      order: [['createdAt', 'DESC']]
     });
     
-    return {
-      totalItems: count,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-      itemsPerPage: limit,
-      ratings: rows
-    };
+    return ratings;
   } catch (error) {
     throw error;
   }

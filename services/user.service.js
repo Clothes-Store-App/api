@@ -187,6 +187,26 @@ const resetPassword = async (resetToken, newPassword) => {
   }
 };
 
+// Thêm hàm đổi mật khẩu
+const changePassword = async (userId, oldPassword, newPassword) => {
+  const user = await User.findByPk(userId);
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+
+  // Kiểm tra mật khẩu cũ
+  const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+  if (!isValidPassword) {
+    throw new Error('Mật khẩu hiện tại không đúng');
+  }
+
+  // Hash và cập nhật mật khẩu mới
+  const hashedPassword = await User.hashPassword(newPassword);
+  await user.update({ password: hashedPassword });
+
+  return { message: 'Đổi mật khẩu thành công' };
+};
+
 module.exports = {
   getAllUsers,
   createUser,
@@ -195,5 +215,6 @@ module.exports = {
   handleForgotPassword,
   verifyResetCode,
   resetPassword,
-  deleteUserImage
+  deleteUserImage,
+  changePassword // Thêm vào exports
 }; 

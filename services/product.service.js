@@ -255,54 +255,89 @@ const createProduct = async (productData) => {
 };
 
 const updateProduct = async (id, productData) => {
-  const { colors, files, ...productInfo } = productData;
-  
+  const { colors, files, ...productInfo } = productData;  
   // Cập nhật thông tin sản phẩm
   const product = await Product.findByPk(id);
   if (!product) throw new Error('Product not found');
   
   await product.update(productInfo);
 
-  // Xóa tất cả màu sắc và size cũ
-  await ProductColor.destroy({
+  // Lấy thông tin màu sắc hiện tại
+  const existingColors = await ProductColor.findAll({
     where: { product_id: id }
   });
 
-  // Upload và xử lý ảnh
-  const uploadedImages = [];
-  if (files && files.length > 0) {
-    const { uploadToCloudinary } = require('../utils/cloudinary');
-    
-    for (const file of files) {
-      try {
-        const imageUrl = await uploadToCloudinary(file, 'products');
-        uploadedImages.push(imageUrl);
-      } catch (uploadError) {
-        console.error('Error uploading image:', uploadError);
-        // Tiếp tục với ảnh tiếp theo nếu có lỗi
-        uploadedImages.push(null);
+  // Xử lý colors và sizes
+  if (colors && Array.isArray(colors)) {    
+    // Xóa các màu không còn trong danh sách mới
+    const newColorIds = colors.map(c => c.id).filter(id => id); // Lọc ra các id không null
+    await ProductColor.destroy({
+      where: { 
+        product_id: id,
+        id: { [Op.notIn]: newColorIds }
+      }
+    });
+
+    // Upload và xử lý ảnh mới (nếu có)
+    const uploadedImages = [];
+    if (files && files.length > 0) {      
+      const { uploadToCloudinary } = require('../utils/cloudinary');
+      
+      for (const file of files) {
+        try {
+          const imageUrl = await uploadToCloudinary(file, 'products');
+          uploadedImages.push(imageUrl);
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          uploadedImages.push(null);
+        }
       }
     }
-  }
 
-  // Xử lý colors và sizes
-  if (colors && Array.isArray(colors)) {
     for (let i = 0; i < colors.length; i++) {
       const colorData = colors[i];
-      
-      // Lấy ảnh tương ứng cho màu này (nếu có)
-      const imageUrl = uploadedImages[i] || null;
+      let productColor;
 
-      // Create color with image
-      const productColor = await ProductColor.create({
-        product_id: id,
-        color_name: colorData.color_name,
-        color_code: colorData.color_code,
-        image: imageUrl
-      });
+      if (colorData.id) {
+        // Cập nhật màu hiện có
+        productColor = await ProductColor.findOne({
+          where: { id: colorData.id, product_id: id }
+        });
 
-      // Add sizes for this color
-      if (colorData.sizes && colorData.sizes.length > 0) {
+        if (productColor) {
+          const updateData = {
+            color_name: colorData.color_name,
+            color_code: colorData.color_code,
+          };
+
+          // Chỉ cập nhật ảnh nếu có ảnh mới được upload
+          if (files && files.length > 0 && uploadedImages[i]) {
+            updateData.image = uploadedImages[i];
+          } else if (colorData.image) {
+            // Giữ lại ảnh cũ nếu có trong colorData và không có ảnh mới
+            updateData.image = colorData.image;
+          }
+
+          await productColor.update(updateData);
+
+          // Xóa sizes cũ của màu này
+          await ColorSize.destroy({
+            where: { product_color_id: productColor.id }
+          });
+        }
+      } else {
+        // Tạo màu mới        
+        productColor = await ProductColor.create({
+          product_id: id,
+          color_name: colorData.color_name,
+          color_code: colorData.color_code,
+          // Sử dụng ảnh từ uploadedImages nếu có file mới, ngược lại sử dụng ảnh từ colorData
+          image: (files && files.length > 0) ? (uploadedImages[i] || null) : (colorData.image || null)
+        });
+      }
+
+      // Thêm sizes cho màu này
+      if (colorData.sizes && colorData.sizes.length > 0 && productColor) {
         const colorSizes = colorData.sizes.map(sizeId => ({
           product_id: id,
           product_color_id: productColor.id,
