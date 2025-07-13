@@ -105,8 +105,13 @@ const getAllProductsByAdmin = async ({page = 1, limit = 10, search = '', categor
     whereClause.category_id = category_id;
   }
 
+  // Ép kiểu status từ string sang boolean nếu có
   if (status !== null) {
-    whereClause.status = status;
+    if (status === 'true' || status === true) {
+      whereClause.status = true;
+    } else if (status === 'false' || status === false) {
+      whereClause.status = false;
+    }
   }
 
   // Đếm tổng số sản phẩm (tránh JOIN để không bị nhân bản)
