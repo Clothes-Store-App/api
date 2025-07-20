@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const { Category } = require('../models');
 
 const getAllCategories = async () => {
-  return await Category.findAll();
+  return await Category.findAll({ where: { status: true } });
 };
 
 const getAllCategoriesByAdmin = async (page = 1, limit = 10, search = '') => {
@@ -51,7 +51,8 @@ const deleteCategory = async (id) => {
   const category = await Category.findByPk(id);
   if (!category) throw new Error('Category not found');
   
-  return await category.destroy();
+  return await category.update({ status: category.status ? false : true });
+  
 };
 
 module.exports = {

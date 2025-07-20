@@ -12,7 +12,6 @@ router.get(BASE_ENDPOINT.ADMIN_LIST, auth, isAdmin, ApiOrderController.getAllByA
 // Tạo order (user đã đăng nhập)
 router.post(
   BASE_ENDPOINT.BASE, 
-  auth,
   ApiOrderController.create
 );
 

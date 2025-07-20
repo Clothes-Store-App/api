@@ -24,4 +24,7 @@ module.exports = {
   PRODUCT_SIZE: "/product-sizes",
   CART: "/cart",
   RATING: "/ratings",
+  VOUCHER: "/vouchers",
+  PAYMENT: "/payments",
+  WISHLIST: "/wishlists",
 };
