@@ -1,53 +1,54 @@
+'use strict';
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
   class Payment extends Model {
     static associate(models) {
-      Payment.belongsTo(models.Order, { foreignKey: 'orderId' });
-      Payment.belongsTo(models.User, { foreignKey: 'userId' });
+      Payment.belongsTo(models.Order, {
+        foreignKey: 'order_id',
+        as: 'order'
+      });
     }
   }
-  Payment.init(
-    {
-      orderId: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-      },
-      userId: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-      },
-      amount: {
-        type: DataTypes.FLOAT,
-        allowNull: false
-      },
-      paymentType: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-      status: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-      responseData: {
-        type: DataTypes.TEXT,
-        allowNull: true
-      },
-      extraData: {
-        type: DataTypes.TEXT,
-        allowNull: true
-      },
-      showtimeId: {
-        type: DataTypes.INTEGER,
-        allowNull: true
+  
+  Payment.init({
+    order_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'Orders',
+        key: 'id'
       }
     },
-    {
-      sequelize,
-      modelName: 'Payment',
-      tableName: 'payments',
-      timestamps: true
+    amount: {
+      type: DataTypes.DECIMAL(10, 0),
+      allowNull: false
+    },
+    paymentType: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'VNPay'
+    },
+    status: {
+      type: DataTypes.ENUM('pending', 'completed', 'failed', 'cancelled'),
+      defaultValue: 'pending'
+    },
+    transactionRef: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    responseData: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    paymentDate: {
+      type: DataTypes.DATE,
+      allowNull: true
     }
-  );
+  }, {
+    sequelize,
+    modelName: 'Payment',
+  });
+  
   return Payment;
 }; 

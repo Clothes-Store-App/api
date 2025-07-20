@@ -128,21 +128,28 @@ const handleForgotPassword = async (email) => {
 };
 
 // Xác thực mã và tạo token reset password
-const verifyResetCode = async (email, code) => {
+const verifyResetCode = async ({email, code}) => {
+  console.log("email", email);
+  console.log("code", code);
   const user = await User.findOne({ where: { email } });
+  console.log("user", user);
   if (!user) {
+    console.log("khong co email", email);
     throw new Error('Email không tồn tại trong hệ thống');
   }
 
   if (!user.reset_password_code || !user.reset_password_expires) {
+    console.log("khong co ma", user.reset_password_code, user.reset_password_expires);
     throw new Error('Không có yêu cầu đặt lại mật khẩu');
   }
 
   if (user.reset_password_code !== code) {
+    console.log("sai ma", user.reset_password_code, code);
     throw new Error('Mã xác thực không đúng');
   }
 
   if (new Date() > user.reset_password_expires) {
+    console.log("ma het han", user.reset_password_expires);
     throw new Error('Mã xác thực đã hết hạn');
   }
 
@@ -159,6 +166,7 @@ const verifyResetCode = async (email, code) => {
     reset_password_expires: null
   });
 
+  console.log("resetToken", resetToken);
   return { resetToken };
 };
 
@@ -187,6 +195,26 @@ const resetPassword = async (resetToken, newPassword) => {
   }
 };
 
+// Thêm hàm đổi mật khẩu
+const changePassword = async (userId, oldPassword, newPassword) => {
+  const user = await User.findByPk(userId);
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+
+  // Kiểm tra mật khẩu cũ
+  const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+  if (!isValidPassword) {
+    throw new Error('Mật khẩu hiện tại không đúng');
+  }
+
+  // Hash và cập nhật mật khẩu mới
+  const hashedPassword = await User.hashPassword(newPassword);
+  await user.update({ password: hashedPassword });
+
+  return { message: 'Đổi mật khẩu thành công' };
+};
+
 module.exports = {
   getAllUsers,
   createUser,
@@ -195,5 +223,6 @@ module.exports = {
   handleForgotPassword,
   verifyResetCode,
   resetPassword,
-  deleteUserImage
+  deleteUserImage,
+  changePassword // Thêm vào exports
 }; 

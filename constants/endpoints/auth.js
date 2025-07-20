@@ -9,4 +9,5 @@ module.exports = {
   VERIFY_EMAIL: "/verify-email",
   RESEND_VERIFICATION_EMAIL: "/resend-verification-email",
   PROFILE: "/profile",
+  CHANGE_PASSWORD: "/change-password",
 };

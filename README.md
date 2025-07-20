@@ -1,6 +1,6 @@
-# Milk Store Backend
+# Clothes Store Backend
 
-Backend API cho ứng dụng Milk Store.
+Backend API cho ứng dụng Clothes Store.
 
 ## Yêu cầu hệ thống
 
@@ -11,8 +11,8 @@ Backend API cho ứng dụng Milk Store.
 
 1. Clone repository:
 ```bash
-git clone https://github.com/username/milk-store-be.git
-cd Milk-Store-BE
+git clone https://github.com/username/clothes-store-be.git
+cd Clothes-Store-BE
 ```
 
 2. Cài đặt các dependencies:
@@ -34,7 +34,7 @@ PORT=8000
 # Database
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=milk_store_db
+DB_NAME=clothes_store_db
 DB_USER=root
 DB_PASSWORD=your_password
 

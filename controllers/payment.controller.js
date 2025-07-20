@@ -1,4 +1,6 @@
 const vnpayService = require('../services/payment.service');
+const orderService = require('../services/order.service');
+
 const moment = require('moment');
 
 /**
@@ -239,7 +241,6 @@ const paymentController = {
           message: 'Thiếu thông tin đơn hàng'
         });
       }
-      const orderService = require('../services/order.service');
       const result = await orderService.checkPaymentStatus(orderId);
       return res.json(result);
     } catch (error) {
