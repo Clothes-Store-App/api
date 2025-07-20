@@ -3,6 +3,7 @@ const sendResponse = require("../utils/responseFormatter");
 const { MESSAGE } = require("../constants/messages");
 const { STATUS } = require("../constants/httpStatusCodes");
 const { PAGINATION } = require('../constants/pagination');
+const voucherService = require("../services/voucher.service");
 
 const getAll = async (req, res) => {
   try {
@@ -46,22 +47,27 @@ const getAllByAdmin = async (req, res) => {
 
 const create = async (req, res) => {  
   try {
-    const { phone, items, total, name, address, user_id } = req.body;
-    
-    // Get user_id from request body or from auth token
+    const { phone, items, total, name, address, user_id, voucher_id = null } = req.body;
     let userId = user_id;
     if (!userId && req.user) {
-      userId = req.user.id; // From auth middleware
+      userId = req.user.id;
     }
-    // Lấy io instance và adminSockets từ app
+    let voucher = null;
+    if (voucher_id) {
+      // Validate voucher
+      voucher = await voucherService.getVoucherById(voucher_id);
+      const now = new Date();
+      if (!voucher || voucher.start_date > now || voucher.end_date < now || voucher.usage_limit <= voucher.used_count) {
+        return sendResponse(res, STATUS.BAD_REQUEST, 'Voucher không hợp lệ hoặc đã hết lượt dùng', null, false);
+      }
+    }
     const io = req.app.get('io');
     const adminSockets = req.app.get('adminSockets');
-    
     const order = await orderService.createOrder(
-      { phone, name, address, items, total, user_id: userId },
+      { phone, name, address, items, total, user_id: userId, voucherId: voucher_id || null },
       io,
       adminSockets
-    );    
+    );
     sendResponse(res, STATUS.CREATED, MESSAGE.SUCCESS.CREATED, order);
   } catch (error) {
     sendResponse(

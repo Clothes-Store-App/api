@@ -20,7 +20,13 @@ module.exports = (sequelize, DataTypes) => {
   Category.init({
     name: DataTypes.STRING,
     image: DataTypes.STRING,
-    deletedAt: DataTypes.DATE
+    deletedAt: DataTypes.DATE,
+    status: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: true,
+      comment: 'Ẩn/hiện danh mục (true: hiện, false: ẩn)'
+    },
   }, {
     sequelize,
     modelName: 'Category',
