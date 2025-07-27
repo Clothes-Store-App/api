@@ -3,4 +3,5 @@ module.exports = {
     VERIFY_RETURN_URL: "/verify-return-url",
     PROCESS_IPN: "/process-ipn",
     HANDLE_CALLBACK: "/handle-callback",
+    CHECK_PAYMENT_STATUS: "/payment-status",
 };

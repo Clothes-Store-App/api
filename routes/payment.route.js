@@ -9,5 +9,7 @@ router.get(VNPAY_ENDPOINT.PROCESS_IPN, paymentController.processIpn);
 router.get(VNPAY_ENDPOINT.HANDLE_CALLBACK, paymentController.handleCallback);
 router.get('/vnpay-return', paymentController.processPaymentReturn);
 router.get('/payment-success', paymentController.paymentSuccessPage);
+router.get('/payment-status/:orderId', paymentController.checkPaymentStatus);
+router.get('/test-callback/:orderId', paymentController.testCallback);
 
 module.exports = router; 

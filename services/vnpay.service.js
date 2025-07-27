@@ -2,13 +2,29 @@ const crypto = require('crypto');
 const moment = require('moment');
 const querystring = require('qs');
 const { Payment, Order } = require('../models');
+const vnpayConfig = require('../config/vnpayConfig');
 
 class VNPayService {
   constructor() {
-    this.vnp_TmnCode = process.env.VNP_TMN_CODE;
-    this.vnp_HashSecret = process.env.VNP_HASH_SECRET;
-    this.vnp_Url = process.env.VNP_URL;
-    this.vnp_ReturnUrl = process.env.VNP_RETURN_URL;
+    // Validate config values
+    if (!vnpayConfig.VNP_TMN_CODE) {
+      throw new Error('VNP_TMN_CODE is not configured');
+    }
+    if (!vnpayConfig.VNP_HASH_SECRET) {
+      throw new Error('VNP_HASH_SECRET is not configured');
+    }
+    if (!vnpayConfig.VNP_URL) {
+      throw new Error('VNP_URL is not configured');
+    }
+    if (!vnpayConfig.VNP_RETURN_URL) {
+      throw new Error('VNP_RETURN_URL is not configured');
+    }
+
+    this.vnp_TmnCode = vnpayConfig.VNP_TMN_CODE;
+    this.vnp_HashSecret = vnpayConfig.VNP_HASH_SECRET;
+    this.vnp_Url = vnpayConfig.VNP_URL;
+    this.vnp_ReturnUrl = vnpayConfig.VNP_RETURN_URL;
+    this.vnp_IpnUrl = vnpayConfig.VNP_IPN_URL;
   }
 
   createPaymentUrl = async (paymentData) => {
@@ -23,6 +39,11 @@ class VNPayService {
         language = 'vn'
       } = paymentData;
 
+      // Validate required parameters
+      if (!order_id || !total) {
+        throw new Error('order_id and total are required');
+      }
+
       // Tạo payment record
       const payment = await Payment.create({
         order_id,
@@ -35,6 +56,11 @@ class VNPayService {
       const secretKey = this.vnp_HashSecret;
       let vnpUrl = this.vnp_Url;
       const returnUrl = this.vnp_ReturnUrl;
+
+      // Validate secret key
+      if (!secretKey) {
+        throw new Error('VNP_HASH_SECRET is undefined');
+      }
 
       const date = new Date();
       const createDate = moment(date).format('YYYYMMDDHHmmss');
@@ -55,6 +81,8 @@ class VNPayService {
       vnp_Params['vnp_ReturnUrl'] = returnUrl;
       vnp_Params['vnp_IpAddr'] = ipAddr;
       vnp_Params['vnp_CreateDate'] = createDate;
+      vnp_Params['vnp_IpnUrl'] = this.vnp_IpnUrl; // Thêm IPN URL
+      
       if (bankCode !== null && bankCode !== '') {
         vnp_Params['vnp_BankCode'] = bankCode;
       }
@@ -72,7 +100,8 @@ class VNPayService {
         transactionRef: orderId,
         responseData: JSON.stringify({
           vnp_TxnRef: orderId,
-          vnp_CreateDate: createDate
+          vnp_CreateDate: createDate,
+          order_id: order_id
         })
       });
 

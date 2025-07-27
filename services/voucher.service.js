@@ -6,8 +6,19 @@ async function createVoucher(data) {
   return await Voucher.create(data);
 }
 
-async function getAllVouchers() {
-  return await Voucher.findAll();
+async function getAllVouchers({ page = 1, limit = 10, search = '' } = {}) {
+  const where = {};
+  if (search) {
+    where.code = { [db.Sequelize.Op.like]: `%${search}%` };
+  }
+  const offset = (page - 1) * limit;
+  const { rows, count } = await Voucher.findAndCountAll({
+    where,
+    offset,
+    limit: Number(limit),
+    order: [['createdAt', 'DESC']]
+  });
+  return { data: rows, totalItems: count };
 }
 
 async function getVoucherById(id) {

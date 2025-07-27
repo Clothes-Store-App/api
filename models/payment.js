@@ -5,14 +5,14 @@ module.exports = (sequelize, DataTypes) => {
   class Payment extends Model {
     static associate(models) {
       Payment.belongsTo(models.Order, {
-        foreignKey: 'order_id',
+        foreignKey: 'orderId',
         as: 'order'
       });
     }
   }
   
   Payment.init({
-    order_id: {
+    orderId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -33,18 +33,22 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('pending', 'completed', 'failed', 'cancelled'),
       defaultValue: 'pending'
     },
-    transactionRef: {
-      type: DataTypes.STRING,
-      allowNull: true
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'Users',
+        key: 'id'
+      }
     },
     responseData: {
       type: DataTypes.TEXT,
       allowNull: true
     },
-    paymentDate: {
-      type: DataTypes.DATE,
-      allowNull: true
-    }
+    // paymentDate: {
+    //   type: DataTypes.DATE,
+    //   allowNull: true
+    // }
   }, {
     sequelize,
     modelName: 'Payment',

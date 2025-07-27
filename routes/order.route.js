@@ -22,6 +22,7 @@ router.put(BASE_ENDPOINT.BY_ID,
   ApiOrderController.update
 );
 
-router.delete(BASE_ENDPOINT.BY_ID, auth, isAdmin, ApiOrderController.remove);
+// Hủy đơn hàng (dành cho user và đơn đang chờ xác nhận)
+router.delete(BASE_ENDPOINT.BY_ID, auth, ApiOrderController.remove);
 
 module.exports = router; 

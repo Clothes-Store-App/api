@@ -34,7 +34,6 @@ const wishlistController = {
   async getAll(req, res) {
     try {
       const userId = req.user?.id || req.query.userId;
-      console.log('userId:', userId);
       
       if (!userId)
         return sendResponse(res, STATUS.BAD_REQUEST, 'Missing userId', null, false);
@@ -49,9 +48,11 @@ const wishlistController = {
     try {
       const userId = req.user?.id || req.query.userId;
       const { productId } = req.query;
+      
       if (!userId || !productId)
         return sendResponse(res, STATUS.BAD_REQUEST, 'Missing userId or productId', null, false);
       const exists = await wishlistService.isInWishlist(userId, productId);
+      
       sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.GET_SUCCESS, { exists });
     } catch (error) {
       sendResponse(res, STATUS.SERVER_ERROR, error.message, null, false, error);

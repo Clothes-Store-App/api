@@ -2,7 +2,6 @@ const orderService = require("../services/order.service");
 const sendResponse = require("../utils/responseFormatter");
 const { MESSAGE } = require("../constants/messages");
 const { STATUS } = require("../constants/httpStatusCodes");
-const { PAGINATION } = require('../constants/pagination');
 const voucherService = require("../services/voucher.service");
 
 const getAll = async (req, res) => {
@@ -29,9 +28,9 @@ const getAllByAdmin = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
     const status = req.query.status || '';
-    const sort = req.query.sort || 'DESC';    
+    const sort = req.query.sort || 'DESC';
 
-    const result = await orderService.getAllOrdersByAdmin({page, limit, search, sort, status});
+    const result = await orderService.getAllOrdersByAdmin({ page, limit, search, sort, status });
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.GET_SUCCESS, result);
   } catch (error) {
     sendResponse(
@@ -45,7 +44,7 @@ const getAllByAdmin = async (req, res) => {
   }
 };
 
-const create = async (req, res) => {  
+const create = async (req, res) => {
   try {
     const { phone, items, total, name, address, user_id, voucher_id = null } = req.body;
     let userId = user_id;
@@ -82,10 +81,12 @@ const create = async (req, res) => {
 };
 
 const update = async (req, res) => {
-  try {    
+  try {
     const updatedOrder = await orderService.updateOrder(
-      {id: req.params.id,
-      status: req.body.status,}
+      {
+        id: req.params.id,
+        status: req.body.status,
+      }
     );
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.UPDATED, updatedOrder);
   } catch (error) {

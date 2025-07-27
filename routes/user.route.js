@@ -24,15 +24,6 @@ router.put(
   BASE_ENDPOINT.BY_ID,
   auth,
   upload.single('image'), // Middleware xử lý upload file
-  [
-    body('name').optional().notEmpty().withMessage(MESSAGE.VALIDATION.REQUIRED('Tên')),
-    body('email').optional().isEmail().withMessage(MESSAGE.VALIDATION.INVALID('Email')),
-    body('password')
-      .optional()
-      .isLength({ min: 6 })
-      .withMessage(MESSAGE.VALIDATION.MIN_LENGTH('Mật khẩu', 6))
-  ],
-  validate,
   ApiUserController.update
 );
 

@@ -1,6 +1,5 @@
-const { Order, OrderItem, Product, ProductColor, ProductSize, ColorSize } = require('../models');
-const { PAGINATION } = require('../constants/pagination');
-const { where, Op } = require('sequelize');
+const { Order, OrderItem, Product, ProductColor, ProductSize, ColorSize, Voucher, Payment } = require('../models');
+const { Op } = require('sequelize');
 const NotificationService = require('./notification.service');
 const { sequelize } = require('../models');
 
@@ -36,11 +35,15 @@ const getAllOrders = async (userId) => {
               ]
             }
           ]
+        },
+        {
+          model: Payment,
+          as: 'payments',
+          attributes: ['id', 'paymentType', 'status', 'amount', 'responseData']
         }
       ],
       order: [['createdAt', 'DESC']]
     });
-    console.log('orders', orders);
     return orders;
   } catch (error) {
     console.error("Error in getAllOrders:", error);
@@ -54,7 +57,7 @@ const getAllOrdersByAdmin = async ({
   search = '',
   sort = 'DESC',
   status = '',
-}) => {  
+}) => {
   try {
     const offset = (page - 1) * limit;
     const whereClause = {};
@@ -77,7 +80,7 @@ const getAllOrdersByAdmin = async ({
 
     // Tính toán số trang thực tế
     const totalPages = Math.ceil(totalCount / limit);
-    
+
     // Kiểm tra nếu page vượt quá totalPages
     if (page > totalPages) {
       return {
@@ -162,7 +165,7 @@ const sendOrderNotificationViaSocket = (order, io, adminSockets) => {
 
     // Gửi thông báo cho từng admin socket
     let sentCount = 0;
-    adminSockets.forEach(({socket}) => {
+    adminSockets.forEach(({ socket }) => {
       try {
         socket.emit('notification', notification);
         sentCount++;
@@ -179,27 +182,35 @@ const sendOrderNotificationViaSocket = (order, io, adminSockets) => {
   }
 };
 
-const createOrder = async ({phone, name, address, items, total, user_id}, io, adminSockets) => { 
+const createOrder = async ({ phone, name, address, items, total, user_id, voucherId }, io, adminSockets) => {
   const transaction = await sequelize.transaction();
   try {
-    
+
     // 1. Tạo order (trong transaction)
-    const order = await Order.create({phone, name, address, items, total, user_id}, { transaction });    
-    
+    const order = await Order.create({ phone, name, address, items, total, user_id, voucherId }, { transaction });
+
+    await Voucher.update({
+      used_count: sequelize.literal(`used_count + 1`),
+      useage_limit: sequelize.literal(`useage_limit - 1`)
+    }, {
+      where: { id: voucherId },
+      transaction
+    });
+
     // 2. Xử lý và tạo order items với color_size_id mapping
     const orderItemsData = [];
-    
+
     for (const item of items) {
       let colorSizeId = null;
       let price = 0;
-      
+
       // Lấy giá sản phẩm từ database (trong transaction)
       const product = await Product.findByPk(item.product_id, { transaction });
       if (!product) {
         throw new Error(`Product with ID ${item.product_id} not found`);
       }
       price = product.price;
-      
+
       // Xử lý color_size_id - ĐẢM BẢO LUÔN CÓ GIÁ TRỊ
       if (item.color_id && item.size_id) {
         // Tìm ColorSize hiện có (trong transaction)
@@ -210,46 +221,46 @@ const createOrder = async ({phone, name, address, items, total, user_id}, io, ad
           },
           transaction
         });
-        
+
         // Nếu không tìm thấy, tạo mới (trong transaction)
         if (!colorSize) {
           console.log(`⚠️ ColorSize not found, creating new one for color: ${item.color_id}, size: ${item.size_id}`);
-          
+
           // Validate color và size tồn tại (trong transaction)
           const [productColor, productSize] = await Promise.all([
             ProductColor.findByPk(item.color_id, { transaction }),
             ProductSize.findByPk(item.size_id, { transaction })
           ]);
-          
+
           if (!productColor || productColor.product_id !== product.id) {
             throw new Error(`Invalid color ID ${item.color_id} for product ${item.product_id}`);
           }
-          
+
           if (!productSize) {
             throw new Error(`Invalid size ID ${item.size_id}`);
           }
-          
+
           // Tạo ColorSize mới (trong transaction)
           colorSize = await ColorSize.create({
             product_id: product.id,
             product_color_id: item.color_id,
             product_size_id: item.size_id
           }, { transaction });
-          
+
           console.log(`✅ Created new ColorSize with ID: ${colorSize.id}`);
         }
-        
+
         colorSizeId = colorSize.id;
       } else {
         // Nếu không có color_id hoặc size_id, reject order
         throw new Error(`Missing color_id or size_id for product ${item.product_id}. color_id: ${item.color_id}, size_id: ${item.size_id}`);
       }
-      
+
       // Đảm bảo colorSizeId không bao giờ null
       if (!colorSizeId) {
         throw new Error(`Failed to determine color_size_id for product ${item.product_id}`);
       }
-      
+
       // Tạo order item data với các field cần thiết
       const orderItemData = {
         order_id: order.id,
@@ -258,20 +269,20 @@ const createOrder = async ({phone, name, address, items, total, user_id}, io, ad
         price: price,
         color_size_id: colorSizeId // ĐẢM BẢO LUÔN CÓ GIÁ TRỊ
       };
-      
+
       orderItemsData.push(orderItemData);
     }
-    
+
     // Bulk create order items (trong transaction)
     await OrderItem.bulkCreate(orderItemsData, { transaction });
-    
+
     // Commit transaction - Tất cả thành công
     await transaction.commit();
-    
+
     // 3. Lấy order đầy đủ với relations (sau khi commit)
     const createdOrder = await Order.findByPk(order.id, {
-      include: [{ 
-        model: OrderItem, 
+      include: [{
+        model: OrderItem,
         as: 'orderItems',
         include: [
           {
@@ -301,8 +312,9 @@ const createOrder = async ({phone, name, address, items, total, user_id}, io, ad
     // 4. Gửi socket notification cho web client
     sendOrderNotificationViaSocket(createdOrder, io, adminSockets);
 
-    // 5. Gửi push notification cho mobile client (đã có)
+    // 5. Gửi push notification cho mobile client
     try {
+      // Gửi notification cho admin users
       await NotificationService.sendNotificationToAdmins(
         'Đơn hàng mới',
         `Có đơn hàng mới từ ${order.phone}`,
@@ -312,11 +324,38 @@ const createOrder = async ({phone, name, address, items, total, user_id}, io, ad
           total: order.total
         }
       );
+
+      // Gửi notification cho user đã đặt hàng (nếu có user_id)
+      if (user_id) {
+        console.log('start send notification to user: ', user_id);
+        
+        await NotificationService.sendNotificationToUser(
+          user_id,
+          'Đơn hàng đã được tạo',
+          `Đơn hàng #${order.id} của bạn đã được tạo thành công với tổng giá trị ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.total)}`,
+          {
+            type: 'ORDER_CREATED',
+            orderId: order.id,
+            total: order.total
+          }
+        );
+      }
     } catch (notificationError) {
       console.error('Error sending push notifications:', notificationError);
       // Không throw error vì đây không phải lỗi nghiêm trọng
     }
-    
+
+          // Clear cart if user is logged in (sau khi commit)
+      if (user_id) {
+        try {
+          const CartService = require('./cart.service');
+          await CartService.clearCart(user_id);
+          console.error('✅ Cart cleared for user:', user_id);
+        } catch (error) {
+          console.error('⚠️ Failed to clear cart:', error.message);
+        }
+      }
+
     return createdOrder;
   } catch (error) {
     // Rollback transaction nếu có lỗi
@@ -326,46 +365,92 @@ const createOrder = async ({phone, name, address, items, total, user_id}, io, ad
   }
 };
 
-const updateOrder = async ({id, status}) => {
-  
+const updateOrder = async ({ id, status }) => {
+
   try {
     const currentOrder = await Order.findByPk(id);
     if (!currentOrder) throw new Error('Order not found');
+
+    // Lưu trạng thái cũ để so sánh
+    const oldStatus = currentOrder.status;
     
     currentOrder.status = status;
     const response = await currentOrder.save();
-    
-  // Trả về đơn hàng đã cập nhật với các orderItems
-  const updatedOrder = await Order.findByPk(id, {
-    include: [{ 
-      model: OrderItem, 
-      as: 'orderItems',
-      include: [
-        {
-          model: Product,
-          as: 'product'
-        },
-        {
-          model: ColorSize,
-          as: 'colorSize',
-          include: [
-            {
-              model: ProductColor,
-              as: 'color',
-              attributes: ['id', 'color_name', 'color_code', 'image']
-            },
-            {
-              model: ProductSize,
-              as: 'size',
-              attributes: ['id', 'size_name']
-            }
-          ]
+
+    // Trả về đơn hàng đã cập nhật với các orderItems
+    const updatedOrder = await Order.findByPk(id, {
+      include: [{
+        model: OrderItem,
+        as: 'orderItems',
+        include: [
+          {
+            model: Product,
+            as: 'product'
+          },
+          {
+            model: ColorSize,
+            as: 'colorSize',
+            include: [
+              {
+                model: ProductColor,
+                as: 'color',
+                attributes: ['id', 'color_name', 'color_code', 'image']
+              },
+              {
+                model: ProductSize,
+                as: 'size',
+                attributes: ['id', 'size_name']
+              }
+            ]
+          }
+        ]
+      }]
+    });
+
+    // Gửi notification cho user nếu trạng thái thay đổi và có user_id
+    if (oldStatus !== status && currentOrder.user_id) {
+      try {
+        // Tạo message tùy theo trạng thái
+        let title = 'Cập nhật đơn hàng';
+        let body = '';
+        
+        switch (status) {
+          case 'pending':
+            body = `Đơn hàng #${id} của bạn đang chờ xử lý`;
+            break;
+          case 'processing':
+            body = `Đơn hàng #${id} của bạn đang được xử lý`;
+            break;
+          case 'cancelled':
+            body = `Đơn hàng #${id} của bạn đã bị hủy`;
+            break;
+          case 'completed':
+            body = `Đơn hàng #${id} của bạn đã hoàn thành`;
+            break;
+          default:
+            body = `Trạng thái đơn hàng #${id} của bạn đã được cập nhật thành "${status}"`;
         }
-      ]
-    }]
-  });
-  
-  return updatedOrder;
+
+        await NotificationService.sendNotificationToUser(
+          currentOrder.user_id,
+          title,
+          body,
+          {
+            type: 'ORDER_STATUS_UPDATED',
+            orderId: id,
+            status: status,
+            oldStatus: oldStatus
+          }
+        );
+
+        console.log(`📱 Status update notification sent to user ${currentOrder.user_id} for order ${id}`);
+      } catch (notificationError) {
+        console.error('Error sending status update notification:', notificationError);
+        // Không throw error vì đây không phải lỗi nghiêm trọng
+      }
+    }
+
+    return updatedOrder;
   } catch (error) {
     console.error("Error in updateOrder:", error);
     throw error;
@@ -375,147 +460,15 @@ const updateOrder = async ({id, status}) => {
 const deleteOrder = async (id) => {
   const order = await Order.findByPk(id);
   if (!order) throw new Error('Order not found');
-  
+
   // Xóa các orderItems trước
-  await OrderItem.destroy({ where: { order_id: id } });
-  
+  const orderUpdate = await order.update({ status: 'cancelled' });
+
   // Sau đó xóa đơn hàng
-  return await order.destroy();
+  return orderUpdate;
 };
 
 class OrderService {
-  async createOrder(orderData) {
-    const { name, phone, address, items, total, user_id } = orderData;
-    console.log('🛒 Creating order with data:', { name, phone, address, total, user_id, itemsCount: items.length });
-
-    const transaction = await sequelize.transaction();
-
-    try {
-      // Create the order
-      console.log('📝 Creating order record...');
-      const order = await Order.create({
-        user_id,
-        name,
-        phone,
-        address,
-        total,
-        status: 'PENDING'
-      }, { transaction });
-      console.log('✅ Order created with ID:', order.id);
-
-      // Create order items with proper color_size_id mapping
-      console.log('📦 Creating order items...');
-      const orderItemsData = [];
-      
-      for (const item of items) {
-        console.log(`🔍 Processing item:`, item);
-        
-        // Validate product exists (trong transaction)
-        const product = await Product.findByPk(item.product_id, { transaction });
-        if (!product) {
-          console.error(`❌ Product not found: ${item.product_id}`);
-          throw new Error(`Product with ID ${item.product_id} not found`);
-        }
-        console.log(`✅ Product found: ${product.name} - Price: ${product.price}`);
-
-        let colorSizeId = null;
-        
-        // Xử lý color_size_id - ĐẢM BẢO LUÔN CÓ GIÁ TRỊ
-        if (item.color_id && item.size_id) {
-          // Tìm ColorSize hiện có (trong transaction)
-          let colorSize = await ColorSize.findOne({
-            where: {
-              product_color_id: item.color_id,
-              product_size_id: item.size_id
-            },
-            transaction
-          });
-          
-          // Nếu không tìm thấy, tạo mới (trong transaction)
-          if (!colorSize) {
-            console.log(`⚠️ ColorSize not found, creating new one for color: ${item.color_id}, size: ${item.size_id}`);
-            
-            // Validate color và size tồn tại (trong transaction)
-            const [productColor, productSize] = await Promise.all([
-              ProductColor.findByPk(item.color_id, { transaction }),
-              ProductSize.findByPk(item.size_id, { transaction })
-            ]);
-            
-            if (!productColor || productColor.product_id !== product.id) {
-              throw new Error(`Invalid color ID ${item.color_id} for product ${item.product_id}`);
-            }
-            
-            if (!productSize) {
-              throw new Error(`Invalid size ID ${item.size_id}`);
-            }
-            
-            // Tạo ColorSize mới (trong transaction)
-            colorSize = await ColorSize.create({
-              product_id: product.id,
-              product_color_id: item.color_id,
-              product_size_id: item.size_id
-            }, { transaction });
-            
-            console.log(`✅ Created new ColorSize with ID: ${colorSize.id}`);
-          }
-          
-          colorSizeId = colorSize.id;
-          console.log(`✅ Using ColorSize ID: ${colorSizeId} for color: ${item.color_id}, size: ${item.size_id}`);
-        } else {
-          // Nếu không có color_id hoặc size_id, reject order
-          throw new Error(`Missing color_id or size_id for product ${item.product_id}. color_id: ${item.color_id}, size_id: ${item.size_id}`);
-        }
-        
-        // Đảm bảo colorSizeId không bao giờ null
-        if (!colorSizeId) {
-          throw new Error(`Failed to determine color_size_id for product ${item.product_id}`);
-        }
-
-        // Create order item data với các field cần thiết
-        const orderItemData = {
-          order_id: order.id,
-          product_id: item.product_id,
-          quantity: item.quantity,
-          price: product.price,
-          color_size_id: colorSizeId // ĐẢM BẢO LUÔN CÓ GIÁ TRỊ
-        };
-        
-        orderItemsData.push(orderItemData);
-        console.log(`📋 Order item data prepared:`, orderItemData);
-      }
-      
-      // Bulk create order items (trong transaction)
-      const orderItems = await OrderItem.bulkCreate(orderItemsData, { transaction });
-      console.log(`✅ Created ${orderItems.length} order items`);
-
-      // Commit transaction - Tất cả thành công
-      await transaction.commit();
-      console.log('🎉 Order creation transaction committed successfully');
-      
-      // Clear cart if user is logged in (sau khi commit)
-      if (user_id) {
-        try {
-          const CartService = require('./cart.service');
-          await CartService.clearCart(user_id);
-          console.log('✅ Cart cleared for user:', user_id);
-        } catch (error) {
-          console.log('⚠️ Failed to clear cart:', error.message);
-        }
-      }
-      
-      // Return order with items
-      return {
-        ...order.toJSON(),
-        orderItems: orderItems.map(item => item.toJSON())
-      };
-    } catch (error) {
-      console.error('💥 Order creation failed:', error.message);
-      console.error('📋 Error details:', error);
-      await transaction.rollback();
-      throw error;
-    }
-  }
-
   async getOrders(filters = {}) {
     const { status, page = 1, limit = 10 } = filters;
 
@@ -610,13 +563,59 @@ class OrderService {
 
   async updateOrderStatus(orderId, status) {
     const order = await Order.findByPk(orderId);
-    
+
     if (!order) {
       throw new Error('Order not found');
     }
 
+    // Lưu trạng thái cũ để so sánh
+    const oldStatus = order.status;
+    
     order.status = status;
     await order.save();
+
+    // Gửi notification cho user nếu trạng thái thay đổi và có user_id
+    if (oldStatus !== status && order.user_id) {
+      try {
+        // Tạo message tùy theo trạng thái
+        let title = 'Cập nhật đơn hàng';
+        let body = '';
+        
+        switch (status) {
+          case 'pending':
+            body = `Đơn hàng #${orderId} của bạn đang chờ xử lý`;
+            break;
+          case 'processing':
+            body = `Đơn hàng #${orderId} của bạn đang được xử lý`;
+            break;
+          case 'completed':
+            body = `Đơn hàng #${orderId} của bạn đã hoàn thành`;
+            break;
+          case 'cancelled':
+            body = `Đơn hàng #${orderId} của bạn đã bị hủy`;
+            break;
+          default:
+            body = `Trạng thái đơn hàng #${orderId} của bạn đã được cập nhật thành "${status}"`;
+        }
+
+        await NotificationService.sendNotificationToUser(
+          order.user_id,
+          title,
+          body,
+          {
+            type: 'ORDER_STATUS_UPDATED',
+            orderId: orderId,
+            status: status,
+            oldStatus: oldStatus
+          }
+        );
+
+        console.log(`📱 Status update notification sent to user ${order.user_id} for order ${orderId}`);
+      } catch (notificationError) {
+        console.error('Error sending status update notification:', notificationError);
+        // Không throw error vì đây không phải lỗi nghiêm trọng
+      }
+    }
 
     return order;
   }

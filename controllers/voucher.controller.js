@@ -14,7 +14,8 @@ const createVoucher = async (req, res) => {
 
 const getAllVouchers = async (req, res) => {
   try {
-    const vouchers = await voucherService.getAllVouchers();
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const vouchers = await voucherService.getAllVouchers({ page, limit, search });
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.GET_SUCCESS, vouchers);
   } catch (error) {
     sendResponse(res, STATUS.SERVER_ERROR, MESSAGE.ERROR.INTERNAL, null, false, error);

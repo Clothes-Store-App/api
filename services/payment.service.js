@@ -12,6 +12,11 @@ const vnpayService = {
    */
   createPaymentUrl: async (paymentData) => {
     try {
+      this.vnp_TmnCode = vnpayConfig.VNP_TMN_CODE;
+      this.vnp_HashSecret = vnpayConfig.VNP_HASH_SECRET;
+      this.vnp_Url = vnpayConfig.VNP_URL;
+      this.vnp_ReturnUrl = vnpayConfig.VNP_RETURN_URL;
+      this.vnp_IpnUrl = vnpayConfig.VNP_IPN_URL;
       const {
         orderId,
         amount,
@@ -22,7 +27,6 @@ const vnpayService = {
         orderType = "billpayment",
         language = "vn",
       } = paymentData;
-      console.log('=== [VNPay-OK] Creating payment URL with data:', paymentData);
       
     process.env.TZ = "Asia/Ho_Chi_Minh";
     const createDate = moment().format("YYYYMMDDHHmmss");
@@ -38,14 +42,14 @@ const vnpayService = {
     const vnpParams = {
       vnp_Version: "2.1.0",
       vnp_Command: "pay",
-      vnp_TmnCode: vnpayConfig.vnp_TmnCode,
+      vnp_TmnCode: this.vnp_TmnCode,
       vnp_Locale: language,
       vnp_CurrCode: "VND",
       vnp_TxnRef: vnpTxnRef,
       vnp_OrderInfo: orderInfo,
       vnp_OrderType: orderType,
       vnp_Amount: amount * 100,
-      vnp_ReturnUrl: vnpayConfig.vnp_ReturnUrl,
+      vnp_ReturnUrl: `${this.vnp_ReturnUrl}?orderId=${orderId}`,
       vnp_IpAddr: ipAddr,
       vnp_CreateDate: createDate,
       vnp_ExpireDate: expireDate,
@@ -61,14 +65,14 @@ const sortedParams = vnpayService.sortObject(vnpParams);
 
 // B2: Tạo chuỗi ký - KHÔNG ENCODE
 const signData = querystring.stringify(sortedParams, { encode: false });
-const hmac = crypto.createHmac("sha512", vnpayConfig.vnp_HashSecret);
+const hmac = crypto.createHmac("sha512", this.vnp_HashSecret);
 const secureHash = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
 
 // B3: Gắn chữ ký vào params
 sortedParams.vnp_SecureHash = secureHash;
 
 // B4: Tạo URL THANH TOÁN - NHỚ ENCODE = TRUE ở đây
-const paymentUrl = `${vnpayConfig.vnp_Url}?${querystring.stringify(sortedParams, { encode: false })}`;
+const paymentUrl = `${this.vnp_Url}?${querystring.stringify(sortedParams, { encode: false })}`;
 
     // B6: Lưu vào DB nếu cần
     await Payment.create({
@@ -76,7 +80,7 @@ const paymentUrl = `${vnpayConfig.vnp_Url}?${querystring.stringify(sortedParams,
       amount,
       orderInfo,
       paymentType: "VNPay",
-      status: "Pending",
+      status: "pending",
       userId,
       responseData: JSON.stringify({
         vnpTxnRef,
@@ -238,7 +242,7 @@ const paymentUrl = `${vnpayConfig.vnp_Url}?${querystring.stringify(sortedParams,
           message: "Payment not found",
           orderId: order_id,
         };
-      if (payment.status === "SUCCESS")
+      if (payment.status === "completed")
         return {
           success: true,
           message: "Payment already processed",
@@ -246,7 +250,7 @@ const paymentUrl = `${vnpayConfig.vnp_Url}?${querystring.stringify(sortedParams,
         };
       if (vnp_ResponseCode === "00") {
         await payment.update({
-          status: "SUCCESS",
+          status: "completed",
           responseData: JSON.stringify({
             ...JSON.parse(payment.responseData || "{}"),
             vnp_ResponseCode,
@@ -261,7 +265,7 @@ const paymentUrl = `${vnpayConfig.vnp_Url}?${querystring.stringify(sortedParams,
         };
       } else {
         await payment.update({
-          status: "FAILED",
+          status: "failed",
           responseData: JSON.stringify({
             ...JSON.parse(payment.responseData || "{}"),
             vnp_ResponseCode,
