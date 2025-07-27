@@ -7,7 +7,7 @@ const { isAdmin } = require('../middleware/role');
 // CRUD
 router.post(BASE_ENDPOINT.BASE, auth, isAdmin, voucherController.createVoucher);
 router.get(VOUCHER_ENDPOINT.AVAILABLE, voucherController.getAvailableVouchers);
-router.get(BASE_ENDPOINT.BASE, voucherController.getAllVouchers);
+router.get(BASE_ENDPOINT.BASE, auth, isAdmin, voucherController.getAllVouchers);
 router.get(BASE_ENDPOINT.BY_ID, voucherController.getVoucherById);
 router.put(BASE_ENDPOINT.BY_ID, auth, isAdmin, voucherController.updateVoucher);
 router.delete(BASE_ENDPOINT.BY_ID, auth, isAdmin, voucherController.deleteVoucher);

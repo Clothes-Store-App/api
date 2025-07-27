@@ -121,11 +121,38 @@ class CartService {
   }
 
   async clearCart(userId) {
-    await CartItem.destroy({
-      where: { user_id: userId }
-    });
-
-    return { success: true };
+    try {
+      // Log để debug
+      console.log('Clearing cart for userId:', userId);
+      
+      // Kiểm tra xem có cart items nào không
+      const cartItems = await CartItem.findAll({
+        where: { user_id: userId }
+      });
+      
+      console.log('Found cart items:', cartItems.length);
+      
+      // Log các cart items để kiểm tra
+      cartItems.forEach(item => {
+        console.log('Cart item:', {
+          id: item.id,
+          user_id: item.user_id,
+          product_id: item.product_id
+        });
+      });
+      
+      // Xóa cart items
+      const result = await CartItem.destroy({
+        where: { user_id: userId }
+      });
+      
+      console.log('Deleted cart items:', result);
+      
+      return { success: true, deletedCount: result };
+    } catch (error) {
+      console.error('Error in clearCart:', error);
+      throw error;
+    }
   }
 }
 

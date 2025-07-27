@@ -1,36 +1,28 @@
-// require('dotenv').config();
-// console.log('=== [VNPay] vnpayConfig loaded:', {
-//   vnp_TmnCode: process.env.VNP_TMNCODE,
-//   vnp_HashSecret: process.env.VNP_HASHSECRET,
-//   vnp_Url: process.env.VNP_URL,
-//   vnp_ReturnUrl: process.env.VNP_RETURNURL,
-// });
 
-// module.exports = {
-//   vnp_TmnCode: process.env.VNP_TMNCODE,
-//   vnp_HashSecret: process.env.VNP_HASHSECRET,
-//   vnp_Url: process.env.VNP_URL,
-//   vnp_ReturnUrl: process.env.VNP_RETURNURL,
-// };
-/**
- * Cấu hình VNPay
- */
 module.exports = {
-  // Terminal ID được cấp bởi VNPay
-  vnp_TmnCode: "WVHCBEIS",
+  // Cấu hình VNPay - sử dụng fallback values cho development
+  VNP_TMN_CODE: process.env.VNP_TMN_CODE || 'WVHCBEIS',
+  VNP_HASH_SECRET: process.env.VNP_HASH_SECRET || 'G835F4FT2LR70GPLQLDMVYRIJHN2YUPT',
+  VNP_URL: process.env.VNP_URL || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
   
-  // Khóa bí mật để tạo chữ ký
-  vnp_HashSecret: "G835F4FT2LR70GPLQLDMVYRIJHN2YUPT",
+  // Return URL cho callback - phải là URL public mà VNPay có thể truy cập
+  VNP_RETURN_URL: process.env.VNP_RETURN_URL || 'http://192.168.20.106:8000/api/payments/vnpay-return',
   
-  // URL thanh toán VNPay Sandbox
-  vnp_Url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+  // IPN URL cho server-to-server callback
+  VNP_IPN_URL: process.env.VNP_IPN_URL || 'http://192.168.20.106:8000/api/payments/process-ipn',
   
-  // URL API VNPay Sandbox
-  vnp_Api: "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction",
+  // Callback URL cho xử lý callback
+  VNP_CALLBACK_URL: process.env.VNP_CALLBACK_URL || 'http://192.168.20.106:8000/api/payments/handle-callback',
   
-  // URL trả về sau khi thanh toán
-  vnp_ReturnUrl: "milkstore://payment-success",
+  // Cấu hình cho development
+  IS_SANDBOX: process.env.NODE_ENV !== 'production',
   
-  // URL nhận thông báo IPN từ VNPay
-  vnp_IpnUrl: "http://192.168.1.16:8000/api/payments/process-ipn"
+  // Timeout cho payment (5 phút)
+  PAYMENT_TIMEOUT: 5 * 60 * 1000,
+  
+  // Số lần retry khi check payment status
+  MAX_RETRY_COUNT: 30,
+  
+  // Interval giữa các lần check (10 giây)
+  CHECK_INTERVAL: 10 * 1000
 }; 
