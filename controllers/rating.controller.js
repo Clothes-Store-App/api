@@ -52,11 +52,10 @@ const updateRating = async (req, res) => {
 };
 
 const deleteRating = async (req, res) => {
-  try {
+  try {    
     const ratingId = req.params.id;
-    const userId = req.user.id;
     
-    await ratingService.deleteRating(ratingId, userId);
+    await ratingService.deleteRating(ratingId);
     sendResponse(res, STATUS.SUCCESS, MESSAGE.SUCCESS.DELETED);
   } catch (error) {
     sendResponse(
