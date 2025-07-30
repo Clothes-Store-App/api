@@ -84,7 +84,7 @@ const updateRating = async (ratingId, ratingData, userId) => {
   }
 };
 
-const deleteRating = async (ratingId, userId) => {
+const deleteRating = async (ratingId) => {  
   try {
     const rating = await Rating.findByPk(ratingId);
     
@@ -92,10 +92,6 @@ const deleteRating = async (ratingId, userId) => {
       throw new Error('Đánh giá không tồn tại');
     }
     
-    // Kiểm tra quyền sở hữu
-    if (rating.user_id !== userId) {
-      throw new Error('Bạn không có quyền xóa đánh giá này');
-    }
     
     await rating.destroy();
     return true;
